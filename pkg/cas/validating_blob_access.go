@@ -26,13 +26,19 @@ func extractDigest(digest *remoteexecution.Digest) ([sha256.Size]byte, uint64, e
 	return checksumBytes, uint64(digest.SizeBytes), nil
 }
 
-type ValidatingBlobAccess struct {
+type validatingBlobAccess struct {
 	blobAccess BlobAccess
 }
 
-var _ BlobAccess = (*ValidatingBlobAccess)(nil)
+var _ BlobAccess = (*validatingBlobAccess)(nil)
 
-func (ba *ValidatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, error) {
+func NewValidatingBlobAccess(blobAccess BlobAccess) BlobAccess {
+	return &validatingBlobAccess{
+		blobAccess: blobAccess,
+	}
+}
+
+func (ba *validatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, error) {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return nil, err
@@ -49,7 +55,7 @@ func (ba *ValidatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, 
 	return &vr, nil
 }
 
-func (ba *ValidatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser, error) {
+func (ba *validatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser, error) {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return nil, err
@@ -65,9 +71,9 @@ func (ba *ValidatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser
 	}, nil
 }
 
-func (ba *ValidatingBlobAccess) FindMissing(digests []remoteexecution.Digest) ([]remoteexecution.Digest, error) {
+func (ba *validatingBlobAccess) FindMissing(digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	for _, digest := range digests {
-		_, _, err := extractDigest(&digest)
+		_, _, err := extractDigest(digest)
 		if err != nil {
 			return nil, err
 		}

@@ -4,26 +4,39 @@ import (
 	"errors"
 	"log"
 
+	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+
 	"golang.org/x/net/context"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
-type ContentAddressableStorageServer struct {
+type contentAddressableStorageServer struct {
+	blobAccess cas.BlobAccess
 }
 
-func (s *ContentAddressableStorageServer) FindMissingBlobs(ctx context.Context, in *remoteexecution.FindMissingBlobsRequest) (*remoteexecution.FindMissingBlobsResponse, error) {
+func NewContentAddressableStorageServer(blobAccess cas.BlobAccess) remoteexecution.ContentAddressableStorageServer {
+	return &contentAddressableStorageServer{
+		blobAccess: blobAccess,
+	}
+}
+
+func (s *contentAddressableStorageServer) FindMissingBlobs(ctx context.Context, in *remoteexecution.FindMissingBlobsRequest) (*remoteexecution.FindMissingBlobsResponse, error) {
 	log.Print("Attempted to call ContentAddressableStorage.FindMissingBlobs")
+	digests, err := s.blobAccess.FindMissing(in.BlobDigests)
+	if err != nil {
+		return nil, err
+	}
 	return &remoteexecution.FindMissingBlobsResponse{
-		MissingBlobDigests: in.BlobDigests,
+		MissingBlobDigests: digests,
 	}, nil
 }
 
-func (s *ContentAddressableStorageServer) BatchUpdateBlobs(ctx context.Context, in *remoteexecution.BatchUpdateBlobsRequest) (*remoteexecution.BatchUpdateBlobsResponse, error) {
+func (s *contentAddressableStorageServer) BatchUpdateBlobs(ctx context.Context, in *remoteexecution.BatchUpdateBlobsRequest) (*remoteexecution.BatchUpdateBlobsResponse, error) {
 	log.Print("Attempted to call ContentAddressableStorage.BatchUpdateBlobs")
 	return nil, errors.New("Fail!")
 }
 
-func (s *ContentAddressableStorageServer) GetTree(ctx context.Context, in *remoteexecution.GetTreeRequest) (*remoteexecution.GetTreeResponse, error) {
+func (s *contentAddressableStorageServer) GetTree(ctx context.Context, in *remoteexecution.GetTreeRequest) (*remoteexecution.GetTreeResponse, error) {
 	log.Print("Attempted to call ContentAddressableStorage.GetTree")
 	return nil, errors.New("Fail!")
 }

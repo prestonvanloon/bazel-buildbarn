@@ -14,5 +14,5 @@ type WriteCloser interface {
 type BlobAccess interface {
 	Get(digest *remoteexecution.Digest) (io.Reader, error)
 	Put(digest *remoteexecution.Digest) (WriteCloser, error)
-	FindMissing(digests []remoteexecution.Digest) ([]remoteexecution.Digest, error)
+	FindMissing(digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
 }

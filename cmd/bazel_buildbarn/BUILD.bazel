@@ -12,6 +12,7 @@ go_library(
     importpath = "github.com/EdSchouten/bazel-buildbarn/cmd/bazel_buildbarn",
     visibility = ["//visibility:private"],
     deps = [
+        "//pkg/cas:go_default_library",
         "@go_googleapis//google/bytestream:bytestream_go_proto",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
         "@go_googleapis//google/longrunning:longrunning_go_proto",

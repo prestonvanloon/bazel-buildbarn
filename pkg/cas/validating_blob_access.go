@@ -41,10 +41,19 @@ type validatingReader struct {
 }
 
 func (r *validatingReader) Read(p []byte) (int, error) {
-	// TODO(edsch): Validate checksum.
 	n, err := r.reader.Read(p)
-	if nLen := uint64(n); nLen > r.sizeLeft {
-		return 0, fmt.Errorf("Blob is %u bytes shorter than expected", nLen - r.sizeLeft)
+	nLen := uint64(n)
+	if nLen > r.sizeLeft {
+		return 0, fmt.Errorf("Blob is %u bytes longer than expected", nLen - r.sizeLeft)
+	}
+	r.sizeLeft -= nLen
+
+	if err == io.EOF {
+		if r.sizeLeft != 0 {
+			err := fmt.Errorf("Blob is %u bytes shorter than expected", r.sizeLeft)
+			return 0, err
+		}
+		// TODO(edsch): Validate checksum.
 	}
 	return n, err
 }

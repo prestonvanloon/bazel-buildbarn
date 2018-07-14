@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"log"
 
 	"golang.org/x/net/context"
@@ -23,7 +24,19 @@ func (s *ByteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error
 	}
 
 	log.Print("Attempted to call ByteStream.Write ", request.ResourceName)
-	return errors.New("Fail!")
+
+	for {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+	}
+	log.Print("Success")
+	return nil
 }
 
 func (s *ByteStreamServer) QueryWriteStatus(ctx context.Context, in *bytestream.QueryWriteStatusRequest) (*bytestream.QueryWriteStatusResponse, error) {

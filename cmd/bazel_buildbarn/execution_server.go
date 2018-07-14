@@ -13,6 +13,6 @@ type ExecutionServer struct {
 }
 
 func (s *ExecutionServer) Execute(ctx context.Context, in *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
-	log.Print("Attempted to call Execution.Execute")
+	log.Print("Attempted to call Execution.Execute: ", in)
 	return nil, errors.New("Fail!")
 }

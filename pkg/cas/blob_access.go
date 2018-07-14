@@ -1,8 +1,9 @@
 package cas
 
 import (
-	"crypto/sha256"
 	"io"
+
+	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
 type WriteCloser interface {
@@ -11,6 +12,7 @@ type WriteCloser interface {
 }
 
 type BlobAccess interface {
-	Get(checksum [sha256.Size]byte, size uint64) (error, io.Reader)
-	Put(checksum [sha256.Size]byte, size uint64) (error, WriteCloser)
+	Get(digest *remoteexecution.Digest) (io.Reader, error)
+	Put(digest *remoteexecution.Digest) (WriteCloser, error)
+	FindMissing(digests []remoteexecution.Digest) ([]remoteexecution.Digest, error)
 }

@@ -2,36 +2,77 @@ package cas
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+
+	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
+
+// extractDigest validates the format of fields in a Digest object and returns them.
+func extractDigest(digest *remoteexecution.Digest) ([sha256.Size]byte, uint64, error) {
+	var checksumBytes [sha256.Size]byte
+	checksum, err := hex.DecodeString(digest.Hash)
+	if err != nil {
+		return checksumBytes, 0, err
+	}
+	if len(checksum) != sha256.Size {
+		return checksumBytes, 0, fmt.Errorf("Expected checksum to be %d bytes; not %d", sha256.Size, len(checksum))
+	}
+	if digest.SizeBytes < 0 {
+		return checksumBytes, 0, fmt.Errorf("Invalid negative size: %d", digest.SizeBytes)
+	}
+	copy(checksumBytes[:], checksum)
+	return checksumBytes, uint64(digest.SizeBytes), nil
+}
 
 type ValidatingBlobAccess struct {
 	blobAccess BlobAccess
 }
 
-func (ba *ValidatingBlobAccess) Get(checksum [sha256.Size]byte, size uint64) (error, io.Reader) {
-	err, r := ba.blobAccess.Get(checksum, size)
+var _ BlobAccess = (*ValidatingBlobAccess)(nil)
+
+func (ba *ValidatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, error) {
+	checksum, size, err := extractDigest(digest)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
-	return nil, &validatingReader{
+	r, err := ba.blobAccess.Get(digest)
+	if err != nil {
+		return nil, err
+	}
+	vr := validatingReader{
 		reader:   r,
 		checksum: checksum,
 		sizeLeft: size,
 	}
+	return &vr, nil
 }
 
-func (ba *ValidatingBlobAccess) Put(checksum [sha256.Size]byte, size uint64) (error, WriteCloser) {
-	err, w := ba.blobAccess.Put(checksum, size)
+func (ba *ValidatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser, error) {
+	checksum, size, err := extractDigest(digest)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
-	return nil, &validatingWriter{
+	w, err := ba.blobAccess.Put(digest)
+	if err != nil {
+		return nil, err
+	}
+	return &validatingWriter{
 		writer:   w,
 		checksum: checksum,
 		sizeLeft: size,
+	}, nil
+}
+
+func (ba *ValidatingBlobAccess) FindMissing(digests []remoteexecution.Digest) ([]remoteexecution.Digest, error) {
+	for _, digest := range digests {
+		_, _, err := extractDigest(&digest)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return ba.blobAccess.FindMissing(digests)
 }
 
 type validatingReader struct {
@@ -44,13 +85,13 @@ func (r *validatingReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	nLen := uint64(n)
 	if nLen > r.sizeLeft {
-		return 0, fmt.Errorf("Blob is %u bytes longer than expected", nLen - r.sizeLeft)
+		return 0, fmt.Errorf("Blob is %d bytes longer than expected", nLen-r.sizeLeft)
 	}
 	r.sizeLeft -= nLen
 
 	if err == io.EOF {
 		if r.sizeLeft != 0 {
-			err := fmt.Errorf("Blob is %u bytes shorter than expected", r.sizeLeft)
+			err := fmt.Errorf("Blob is %d bytes shorter than expected", r.sizeLeft)
 			return 0, err
 		}
 		// TODO(edsch): Validate checksum.
@@ -67,7 +108,7 @@ type validatingWriter struct {
 func (w *validatingWriter) Write(p []byte) (int, error) {
 	// TODO(edsch): Update checksum.
 	if pLen := uint64(len(p)); pLen > w.sizeLeft {
-		return 0, fmt.Errorf("Attempted to write %u bytes too many", pLen - w.sizeLeft)
+		return 0, fmt.Errorf("Attempted to write %d bytes too many", pLen-w.sizeLeft)
 	}
 	n, err := w.writer.Write(p)
 	w.sizeLeft -= uint64(n)
@@ -77,7 +118,7 @@ func (w *validatingWriter) Write(p []byte) (int, error) {
 func (w *validatingWriter) Close() error {
 	// TODO(edsch): Validate checksum.
 	if w.sizeLeft != 0 {
-		err := fmt.Errorf("Blob is %u bytes shorter than expected", w.sizeLeft)
+		err := fmt.Errorf("Blob is %d bytes shorter than expected", w.sizeLeft)
 		w.writer.CloseWithError(err)
 		return err
 	}

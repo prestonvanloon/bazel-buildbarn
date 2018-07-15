@@ -66,7 +66,6 @@ func (s *byteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error
 	if digest == nil {
 		return errors.New("Unsupported resource naming scheme")
 	}
-	log.Print("Attempted to call ByteStream.Write ", instance, " ", digest)
 	w, err := s.blobAccess.Put(instance, digest)
 	if err != nil {
 		log.Print(err)

@@ -23,7 +23,7 @@ func main() {
 	remoteexecution.RegisterActionCacheServer(s, &ActionCacheServer{})
 	remoteexecution.RegisterContentAddressableStorageServer(s, NewContentAddressableStorageServer(blobAccess))
 	bytestream.RegisterByteStreamServer(s, NewByteStreamServer(blobAccess))
-	remoteexecution.RegisterExecutionServer(s, &ExecutionServer{})
+	remoteexecution.RegisterExecutionServer(s, NewExecutionServer(blobAccess))
 	if err := s.Serve(sock); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

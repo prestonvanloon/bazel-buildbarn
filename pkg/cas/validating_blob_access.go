@@ -38,12 +38,12 @@ func NewValidatingBlobAccess(blobAccess BlobAccess) BlobAccess {
 	}
 }
 
-func (ba *validatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, error) {
+func (ba *validatingBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.Reader, error) {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return nil, err
 	}
-	r, err := ba.blobAccess.Get(digest)
+	r, err := ba.blobAccess.Get(instance, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -55,12 +55,12 @@ func (ba *validatingBlobAccess) Get(digest *remoteexecution.Digest) (io.Reader, 
 	return &vr, nil
 }
 
-func (ba *validatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser, error) {
+func (ba *validatingBlobAccess) Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error) {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return nil, err
 	}
-	w, err := ba.blobAccess.Put(digest)
+	w, err := ba.blobAccess.Put(instance, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +71,14 @@ func (ba *validatingBlobAccess) Put(digest *remoteexecution.Digest) (WriteCloser
 	}, nil
 }
 
-func (ba *validatingBlobAccess) FindMissing(digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
+func (ba *validatingBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	for _, digest := range digests {
 		_, _, err := extractDigest(digest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return ba.blobAccess.FindMissing(digests)
+	return ba.blobAccess.FindMissing(instance, digests)
 }
 
 type validatingReader struct {
@@ -124,13 +124,12 @@ func (w *validatingWriter) Write(p []byte) (int, error) {
 func (w *validatingWriter) Close() error {
 	// TODO(edsch): Validate checksum.
 	if w.sizeLeft != 0 {
-		err := fmt.Errorf("Blob is %d bytes shorter than expected", w.sizeLeft)
-		w.writer.CloseWithError(err)
-		return err
+		w.writer.Abandon()
+		return fmt.Errorf("Blob is %d bytes shorter than expected", w.sizeLeft)
 	}
 	return w.writer.Close()
 }
 
-func (w *validatingWriter) CloseWithError(err error) {
-	w.writer.CloseWithError(err)
+func (w *validatingWriter) Abandon() {
+	w.writer.Abandon()
 }

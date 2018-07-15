@@ -8,11 +8,11 @@ import (
 
 type WriteCloser interface {
 	io.WriteCloser
-	CloseWithError(err error)
+	Abandon()
 }
 
 type BlobAccess interface {
-	Get(digest *remoteexecution.Digest) (io.Reader, error)
-	Put(digest *remoteexecution.Digest) (WriteCloser, error)
-	FindMissing(digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
+	Get(instance string, digest *remoteexecution.Digest) (io.Reader, error)
+	Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error)
+	FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
 }

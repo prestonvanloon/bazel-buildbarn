@@ -5,19 +5,28 @@ import (
 	"io"
 	"log"
 
+	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/googleapis/bytestream"
 )
 
-type ByteStreamServer struct {
+type byteStreamServer struct {
+	blobAccess cas.BlobAccess
 }
 
-func (s *ByteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteStream_ReadServer) error {
+func NewByteStreamServer(blobAccess cas.BlobAccess) bytestream.ByteStreamServer {
+	return &byteStreamServer{
+		blobAccess: blobAccess,
+	}
+}
+
+func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteStream_ReadServer) error {
 	log.Print("Attempted to call ByteStream.Read")
 	return errors.New("Fail!")
 }
 
-func (s *ByteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error {
+func (s *byteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error {
 	request, err := stream.Recv()
 	if err != nil {
 		return err
@@ -39,7 +48,7 @@ func (s *ByteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error
 	return nil
 }
 
-func (s *ByteStreamServer) QueryWriteStatus(ctx context.Context, in *bytestream.QueryWriteStatusRequest) (*bytestream.QueryWriteStatusResponse, error) {
+func (s *byteStreamServer) QueryWriteStatus(ctx context.Context, in *bytestream.QueryWriteStatusRequest) (*bytestream.QueryWriteStatusResponse, error) {
 	log.Print("Attempted to call ByteStream.QueryWriteStatus")
 	return nil, errors.New("Fail!")
 }

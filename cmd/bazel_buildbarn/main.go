@@ -17,13 +17,12 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	// TODO(edsch): Use a proper implementation!
-	blobAccess := cas.NewValidatingBlobAccess(nil)
+	blobAccess := cas.NewValidatingBlobAccess(cas.NewMemoryBlobAccess())
 
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, &ActionCacheServer{})
 	remoteexecution.RegisterContentAddressableStorageServer(s, NewContentAddressableStorageServer(blobAccess))
-	bytestream.RegisterByteStreamServer(s, &ByteStreamServer{})
+	bytestream.RegisterByteStreamServer(s, NewByteStreamServer(blobAccess))
 	remoteexecution.RegisterExecutionServer(s, &ExecutionServer{})
 	if err := s.Serve(sock); err != nil {
 		log.Fatalf("failed to serve: %v", err)

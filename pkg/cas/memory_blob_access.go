@@ -21,7 +21,9 @@ type memoryBlobAccess struct {
 var _ BlobAccess = (*memoryBlobAccess)(nil)
 
 func NewMemoryBlobAccess() BlobAccess {
-	return &memoryBlobAccess{}
+	return &memoryBlobAccess{
+		blobs: map[string][]byte{},
+	}
 }
 
 func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.Reader, error) {
@@ -36,8 +38,10 @@ func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 }
 
 func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error) {
-	// TODO(edsch): Implement!
-	return nil, fmt.Errorf("Not implemented!")
+	return &memoryBlobWriter{
+		key:        digestToKey(instance, digest),
+		blobAccess: ba,
+	}, nil
 }
 
 func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
@@ -50,4 +54,25 @@ func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecut
 	}
 	ba.lock.RUnlock()
 	return missing, nil
+}
+
+type memoryBlobWriter struct {
+	key        string
+	data       []byte
+	blobAccess *memoryBlobAccess
+}
+
+func (bw *memoryBlobWriter) Write(p []byte) (n int, err error) {
+	bw.data = append(bw.data, p...)
+	return len(p), nil
+}
+
+func (bw *memoryBlobWriter) Close() error {
+	bw.blobAccess.lock.Lock()
+	bw.blobAccess.blobs[bw.key] = bw.data
+	bw.blobAccess.lock.Unlock()
+	return nil
+}
+
+func (bw *memoryBlobWriter) Abandon() {
 }

@@ -4,7 +4,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	blobAccess := cas.NewValidatingBlobAccess(cas.NewMemoryBlobAccess())
+	blobAccess := blobstore.NewValidatingBlobAccess(blobstore.NewMemoryBlobAccess())
 
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, &ActionCacheServer{})

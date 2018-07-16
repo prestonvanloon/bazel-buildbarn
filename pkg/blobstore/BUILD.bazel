@@ -7,7 +7,7 @@ go_library(
         "memory_blob_access.go",
         "validating_blob_access.go",
     ],
-    importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/cas",
+    importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/blobstore",
     visibility = ["//visibility:public"],
     deps = ["@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto"],
 )

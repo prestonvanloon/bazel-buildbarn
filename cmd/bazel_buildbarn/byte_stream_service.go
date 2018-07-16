@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/googleapis/bytestream"
@@ -42,10 +42,10 @@ func parseResourceName(resourceName string) (string, *remoteexecution.Digest) {
 }
 
 type byteStreamServer struct {
-	blobAccess cas.BlobAccess
+	blobAccess blobstore.BlobAccess
 }
 
-func NewByteStreamServer(blobAccess cas.BlobAccess) bytestream.ByteStreamServer {
+func NewByteStreamServer(blobAccess blobstore.BlobAccess) bytestream.ByteStreamServer {
 	return &byteStreamServer{
 		blobAccess: blobAccess,
 	}

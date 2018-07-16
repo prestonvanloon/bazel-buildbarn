@@ -4,17 +4,17 @@ import (
 	"errors"
 	"log"
 
-	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
 type contentAddressableStorageServer struct {
-	blobAccess cas.BlobAccess
+	blobAccess blobstore.BlobAccess
 }
 
-func NewContentAddressableStorageServer(blobAccess cas.BlobAccess) remoteexecution.ContentAddressableStorageServer {
+func NewContentAddressableStorageServer(blobAccess blobstore.BlobAccess) remoteexecution.ContentAddressableStorageServer {
 	return &contentAddressableStorageServer{
 		blobAccess: blobAccess,
 	}

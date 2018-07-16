@@ -1,4 +1,4 @@
-package cas
+package blobstore
 
 import (
 	"bytes"

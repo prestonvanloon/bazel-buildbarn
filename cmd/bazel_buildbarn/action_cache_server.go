@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io/ioutil"
 	"log"
 
@@ -9,7 +8,10 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type actionCacheServer struct {
@@ -42,6 +44,5 @@ func (s *actionCacheServer) GetActionResult(ctx context.Context, in *remoteexecu
 }
 
 func (s *actionCacheServer) UpdateActionResult(ctx context.Context, in *remoteexecution.UpdateActionResultRequest) (*remoteexecution.ActionResult, error) {
-	log.Print("Attempted to call ActionCache.UpdateActionResult")
-	return nil, errors.New("Fail!")
+	return nil, status.Error(codes.PermissionDenied, "This service can only be used to get action results")
 }

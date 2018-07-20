@@ -7,7 +7,10 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type contentAddressableStorageServer struct {
@@ -37,6 +40,5 @@ func (s *contentAddressableStorageServer) BatchUpdateBlobs(ctx context.Context, 
 }
 
 func (s *contentAddressableStorageServer) GetTree(ctx context.Context, in *remoteexecution.GetTreeRequest) (*remoteexecution.GetTreeResponse, error) {
-	log.Print("Attempted to call ContentAddressableStorage.GetTree")
-	return nil, errors.New("Fail!")
+	return nil, status.Error(codes.Unimplemented, "This service does not support downloading directory trees")
 }

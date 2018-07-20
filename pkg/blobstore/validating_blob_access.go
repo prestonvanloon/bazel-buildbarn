@@ -30,8 +30,6 @@ type validatingBlobAccess struct {
 	blobAccess BlobAccess
 }
 
-var _ BlobAccess = (*validatingBlobAccess)(nil)
-
 func NewValidatingBlobAccess(blobAccess BlobAccess) BlobAccess {
 	return &validatingBlobAccess{
 		blobAccess: blobAccess,

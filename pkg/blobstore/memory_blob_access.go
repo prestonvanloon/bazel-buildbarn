@@ -18,8 +18,6 @@ type memoryBlobAccess struct {
 	blobs map[string][]byte
 }
 
-var _ BlobAccess = (*memoryBlobAccess)(nil)
-
 func NewMemoryBlobAccess() BlobAccess {
 	return &memoryBlobAccess{
 		blobs: map[string][]byte{},

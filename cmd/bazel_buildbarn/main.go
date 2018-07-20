@@ -22,7 +22,7 @@ func main() {
 	contentAddressableStorage := blobstore.NewValidatingBlobAccess(blobstore.NewMemoryBlobAccess())
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
 	actionCache := blobstore.NewMemoryBlobAccess()
-	buildQueue := builder.NewSynchronousBuildQueue(buildExecutor, actionCache)
+	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor))
 
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, NewActionCacheServer(actionCache))

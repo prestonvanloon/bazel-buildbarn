@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "build_executor.go",
         "build_queue.go",
+        "cached_build_queue.go",
         "local_build_executor.go",
         "synchronous_build_queue.go",
     ],

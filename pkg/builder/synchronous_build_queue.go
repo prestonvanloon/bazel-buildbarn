@@ -3,8 +3,6 @@ package builder
 import (
 	"errors"
 
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
-
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/genproto/googleapis/longrunning"
 	watcher "google.golang.org/genproto/googleapis/watcher/v1"
@@ -14,10 +12,9 @@ import (
 
 type synchronousBuildQueue struct {
 	buildExecutor BuildExecutor
-	actionCache   blobstore.BlobAccess
 }
 
-func NewSynchronousBuildQueue(buildExecutor BuildExecutor, actionCache blobstore.BlobAccess) BuildQueue {
+func NewSynchronousBuildQueue(buildExecutor BuildExecutor) BuildQueue {
 	return &synchronousBuildQueue{
 		buildExecutor: buildExecutor,
 	}

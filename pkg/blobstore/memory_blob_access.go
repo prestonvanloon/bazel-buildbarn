@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func digestToKey(instance string, digest *remoteexecution.Digest) string {
@@ -30,7 +32,7 @@ func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 	blob, ok := ba.blobs[key]
 	ba.lock.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("Blob %s not found", key)
+		return nil, status.Errorf(codes.NotFound, "Blob %s not found", key)
 	}
 	return bytes.NewReader(blob), nil
 }

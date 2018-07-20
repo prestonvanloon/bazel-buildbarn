@@ -5,9 +5,11 @@ import (
 	"net"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	watcher "google.golang.org/genproto/googleapis/watcher/v1"
 	"google.golang.org/grpc"
 )
 
@@ -17,13 +19,17 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	blobAccess := blobstore.NewValidatingBlobAccess(blobstore.NewMemoryBlobAccess())
+	contentAddressableStorage := blobstore.NewValidatingBlobAccess(blobstore.NewMemoryBlobAccess())
+	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
+	actionCache := blobstore.NewMemoryBlobAccess()
+	buildQueue := builder.NewSynchronousBuildQueue(buildExecutor, actionCache)
 
 	s := grpc.NewServer()
-	remoteexecution.RegisterActionCacheServer(s, &ActionCacheServer{})
-	remoteexecution.RegisterContentAddressableStorageServer(s, NewContentAddressableStorageServer(blobAccess))
-	bytestream.RegisterByteStreamServer(s, NewByteStreamServer(blobAccess))
-	remoteexecution.RegisterExecutionServer(s, NewExecutionServer(blobAccess))
+	remoteexecution.RegisterActionCacheServer(s, NewActionCacheServer(actionCache))
+	remoteexecution.RegisterContentAddressableStorageServer(s, NewContentAddressableStorageServer(contentAddressableStorage))
+	bytestream.RegisterByteStreamServer(s, NewByteStreamServer(contentAddressableStorage))
+	remoteexecution.RegisterExecutionServer(s, buildQueue)
+	watcher.RegisterWatcherServer(s, buildQueue)
 	if err := s.Serve(sock); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

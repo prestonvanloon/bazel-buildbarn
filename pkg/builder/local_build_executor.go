@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"errors"
@@ -8,25 +8,23 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/golang/protobuf/proto"
 
-	"golang.org/x/net/context"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
-	"google.golang.org/genproto/googleapis/longrunning"
 )
 
-type executionServer struct {
-	blobAccess blobstore.BlobAccess
+type localBuildExecutor struct {
+	contentAddressableStorage blobstore.BlobAccess
 }
 
-func NewExecutionServer(blobAccess blobstore.BlobAccess) remoteexecution.ExecutionServer {
-	return &executionServer{
-		blobAccess: blobAccess,
+func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess) BuildExecutor {
+	return &localBuildExecutor{
+		contentAddressableStorage: contentAddressableStorage,
 	}
 }
 
-func (s *executionServer) Execute(ctx context.Context, in *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
-	log.Print("Got ExecuteRequest:" , in)
+func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+	log.Print("Got ExecuteRequest:", request)
 
-	r, err := s.blobAccess.Get(in.InstanceName, in.Action.CommandDigest)
+	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)
 	if err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err
@@ -43,7 +41,7 @@ func (s *executionServer) Execute(ctx context.Context, in *remoteexecution.Execu
 	}
 	log.Print("Got command: ", command)
 
-	r, err = s.blobAccess.Get(in.InstanceName, in.Action.InputRootDigest)
+	r, err = be.contentAddressableStorage.Get(request.InstanceName, request.Action.InputRootDigest)
 	if err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err

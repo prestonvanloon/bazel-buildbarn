@@ -11,18 +11,18 @@ import (
 )
 
 type contentAddressableStorageServer struct {
-	blobAccess blobstore.BlobAccess
+	contentAddressableStorage blobstore.BlobAccess
 }
 
-func NewContentAddressableStorageServer(blobAccess blobstore.BlobAccess) remoteexecution.ContentAddressableStorageServer {
+func NewContentAddressableStorageServer(contentAddressableStorage blobstore.BlobAccess) remoteexecution.ContentAddressableStorageServer {
 	return &contentAddressableStorageServer{
-		blobAccess: blobAccess,
+		contentAddressableStorage: contentAddressableStorage,
 	}
 }
 
 func (s *contentAddressableStorageServer) FindMissingBlobs(ctx context.Context, in *remoteexecution.FindMissingBlobsRequest) (*remoteexecution.FindMissingBlobsResponse, error) {
 	log.Print("Attempted to call ContentAddressableStorage.FindMissingBlobs")
-	digests, err := s.blobAccess.FindMissing(in.InstanceName, in.BlobDigests)
+	digests, err := s.contentAddressableStorage.FindMissing(in.InstanceName, in.BlobDigests)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,7 @@ go_library(
     srcs = [
         "blob_access.go",
         "memory_blob_access.go",
-        "validating_blob_access.go",
+        "merkle_blob_access.go",
     ],
     importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/blobstore",
     visibility = ["//visibility:public"],

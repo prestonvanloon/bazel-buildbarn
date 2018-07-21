@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	contentAddressableStorage := blobstore.NewValidatingBlobAccess(blobstore.NewMemoryBlobAccess())
+	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess())
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
 	actionCache := blobstore.NewMemoryBlobAccess()
 	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor))

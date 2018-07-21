@@ -19,9 +19,9 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess())
+	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess(blobstore.KeyBlobWithoutInstance))
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
-	actionCache := blobstore.NewMemoryBlobAccess()
+	actionCache := blobstore.NewMemoryBlobAccess(blobstore.KeyBlobWithInstance)
 	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor))
 
 	s := grpc.NewServer()

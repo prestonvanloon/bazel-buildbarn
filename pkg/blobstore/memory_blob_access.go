@@ -2,7 +2,6 @@ package blobstore
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"sync"
 
@@ -11,23 +10,24 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func digestToKey(instance string, digest *remoteexecution.Digest) string {
-	return fmt.Sprintf("%s/%s/%d", instance, digest.Hash, digest.SizeBytes)
-}
-
 type memoryBlobAccess struct {
-	lock  sync.RWMutex
-	blobs map[string][]byte
+	blobKeyer BlobKeyer
+	lock      sync.RWMutex
+	blobs     map[string][]byte
 }
 
-func NewMemoryBlobAccess() BlobAccess {
+func NewMemoryBlobAccess(blobKeyer BlobKeyer) BlobAccess {
 	return &memoryBlobAccess{
-		blobs: map[string][]byte{},
+		blobKeyer: blobKeyer,
+		blobs:     map[string][]byte{},
 	}
 }
 
 func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.Reader, error) {
-	key := digestToKey(instance, digest)
+	key, err := ba.blobKeyer(instance, digest)
+	if err != nil {
+		return nil, err
+	}
 	ba.lock.RLock()
 	blob, ok := ba.blobs[key]
 	ba.lock.RUnlock()
@@ -38,8 +38,12 @@ func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 }
 
 func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error) {
+	key, err := ba.blobKeyer(instance, digest)
+	if err != nil {
+		return nil, err
+	}
 	return &memoryBlobWriter{
-		key:        digestToKey(instance, digest),
+		key:        key,
 		blobAccess: ba,
 	}, nil
 }
@@ -47,12 +51,16 @@ func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest)
 func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	var missing []*remoteexecution.Digest
 	ba.lock.RLock()
+	defer ba.lock.RUnlock()
 	for _, digest := range digests {
-		if _, ok := ba.blobs[digestToKey(instance, digest)]; !ok {
+		key, err := ba.blobKeyer(instance, digest)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := ba.blobs[key]; !ok {
 			missing = append(missing, digest)
 		}
 	}
-	ba.lock.RUnlock()
 	return missing, nil
 }
 

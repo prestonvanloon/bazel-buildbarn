@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "blob_access.go",
+        "blob_keyer.go",
         "memory_blob_access.go",
         "merkle_blob_access.go",
     ],

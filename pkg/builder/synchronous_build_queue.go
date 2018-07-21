@@ -23,6 +23,7 @@ type synchronousBuildJob struct {
 	deduplicationKey string
 	executeRequest   remoteexecution.ExecuteRequest
 
+	stage                   remoteexecution.ExecuteOperationMetadata_Stage
 	executeResponse         *remoteexecution.ExecuteResponse
 	executeError            error
 	executeTransitionWakeup *sync.Cond
@@ -30,9 +31,8 @@ type synchronousBuildJob struct {
 
 func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 	metadata, err := ptypes.MarshalAny(&remoteexecution.ExecuteOperationMetadata{
-		Stage:        remoteexecution.ExecuteOperationMetadata_QUEUED,
+		Stage:        bj.stage,
 		ActionDigest: bj.actionDigest,
-		// TODO(edsch): Do we need StdoutStreamName and StderrStreamName? Bazel doesn't seem to use them.
 	})
 	if err != nil {
 		log.Fatal("Failed to marshal execute operation metadata: ", err)
@@ -59,7 +59,7 @@ func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 // TODO(edsch): Should take a context.
 // TODO(edsch): Should wake up periodically.
 func (bj *synchronousBuildJob) waitForTransition() {
-	for bj.executeResponse == nil && bj.executeError == nil {
+	if bj.executeResponse == nil && bj.executeError == nil {
 		bj.executeTransitionWakeup.Wait()
 	}
 }
@@ -109,10 +109,11 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 		}
 
 		job = &synchronousBuildJob{
-			name:                    uuid.Must(uuid.NewV4()).String(),
-			actionDigest:            actionDigest,
-			deduplicationKey:        deduplicationKey,
-			executeRequest:          *request,
+			name:             uuid.Must(uuid.NewV4()).String(),
+			actionDigest:     actionDigest,
+			deduplicationKey: deduplicationKey,
+			executeRequest:   *request,
+			stage:            remoteexecution.ExecuteOperationMetadata_QUEUED,
 			executeTransitionWakeup: sync.NewCond(&bq.jobsLock),
 		}
 		bq.jobsNameMap[job.name] = job

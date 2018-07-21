@@ -5,18 +5,20 @@ import (
 	"io"
 	"sync"
 
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type memoryBlobAccess struct {
-	blobKeyer BlobKeyer
+	blobKeyer util.DigestKeyer
 	lock      sync.RWMutex
 	blobs     map[string][]byte
 }
 
-func NewMemoryBlobAccess(blobKeyer BlobKeyer) BlobAccess {
+func NewMemoryBlobAccess(blobKeyer util.DigestKeyer) BlobAccess {
 	return &memoryBlobAccess{
 		blobKeyer: blobKeyer,
 		blobs:     map[string][]byte{},

@@ -2,6 +2,7 @@ package builder
 
 import (
 	"errors"
+	"log"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/golang/protobuf/ptypes"
@@ -14,12 +15,14 @@ import (
 )
 
 type synchronousBuildQueue struct {
-	buildExecutor BuildExecutor
+	buildExecutor      BuildExecutor
+	deduplicationKeyer util.DigestKeyer
 }
 
-func NewSynchronousBuildQueue(buildExecutor BuildExecutor) BuildQueue {
+func NewSynchronousBuildQueue(buildExecutor BuildExecutor, deduplicationKeyer util.DigestKeyer) BuildQueue {
 	return &synchronousBuildQueue{
-		buildExecutor: buildExecutor,
+		buildExecutor:      buildExecutor,
+		deduplicationKeyer: deduplicationKeyer,
 	}
 }
 
@@ -29,7 +32,7 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 		return nil, err
 	}
 	// Use the action digest to deduplicate identical execution requests.
-	name, err := util.DigestToString(digest)
+	name, err := bq.deduplicationKeyer(request.InstanceName, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -51,5 +54,6 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 }
 
 func (bq *synchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_WatchServer) error {
+	log.Print("Hi: ", in)
 	return errors.New("Not implemented")
 }

@@ -13,6 +13,7 @@ go_library(
     deps = [
         "//pkg/blobstore:go_default_library",
         "//pkg/builder:go_default_library",
+        "//pkg/util:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
         "@go_googleapis//google/bytestream:bytestream_go_proto",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",

@@ -3,8 +3,6 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
-	"fmt"
 
 	"github.com/golang/protobuf/proto"
 
@@ -21,13 +19,4 @@ func DigestFromMessage(pb proto.Message) (*remoteexecution.Digest, error) {
 		Hash:      hex.EncodeToString(hash[:]),
 		SizeBytes: int64(len(data)),
 	}, nil
-}
-
-func DigestToString(digest *remoteexecution.Digest) (string, error) {
-	for _, c := range digest.Hash {
-		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
-			return "", errors.New("Blob hash can only contain hexadecimal characters")
-		}
-	}
-	return fmt.Sprintf("%s|%d", digest.Hash, digest.SizeBytes), nil
 }

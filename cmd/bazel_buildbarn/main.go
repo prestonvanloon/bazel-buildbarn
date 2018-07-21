@@ -6,6 +6,7 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
@@ -19,10 +20,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess(blobstore.KeyBlobWithoutInstance))
+	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance))
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
-	actionCache := blobstore.NewMemoryBlobAccess(blobstore.KeyBlobWithInstance)
-	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor))
+	actionCache := blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
+	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance))
 
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, NewActionCacheServer(actionCache))

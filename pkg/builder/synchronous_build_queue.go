@@ -56,6 +56,8 @@ func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 	return operation
 }
 
+// TODO(edsch): Should take a context.
+// TODO(edsch): Should wake up periodically.
 func (bj *synchronousBuildJob) waitForTransition() {
 	for bj.executeResponse == nil && bj.executeError == nil {
 		bj.executeTransitionWakeup.Wait()

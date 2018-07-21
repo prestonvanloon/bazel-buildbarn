@@ -13,7 +13,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/blobstore:go_default_library",
+        "//pkg/util:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@go_googleapis//google/watcher/v1:watcher_go_proto",

@@ -1,9 +1,7 @@
 package blobstore
 
 import (
-	"errors"
-	"fmt"
-	"strings"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
@@ -11,18 +9,13 @@ import (
 type BlobKeyer func(instance string, digest *remoteexecution.Digest) (string, error)
 
 func KeyBlobWithInstance(instance string, digest *remoteexecution.Digest) (string, error) {
-	if strings.ContainsRune(digest.Hash, '|') {
-		return "", errors.New("Blob hash cannot contain pipe character")
+	digestString, err := util.DigestToString(digest)
+	if err != nil {
+		return "", err
 	}
-	if strings.ContainsRune(instance, '|') {
-		return "", errors.New("Instance name cannot contain pipe character")
-	}
-	return fmt.Sprintf("%s|%d|%s", digest.Hash, digest.SizeBytes, instance), nil
+	return digestString + "|" + instance, nil
 }
 
 func KeyBlobWithoutInstance(_ string, digest *remoteexecution.Digest) (string, error) {
-	if strings.ContainsRune(digest.Hash, '|') {
-		return "", errors.New("Blob hash cannot contain pipe character")
-	}
-	return fmt.Sprintf("%s|%d", digest.Hash, digest.SizeBytes), nil
+	return util.DigestToString(digest)
 }

@@ -1,7 +1,9 @@
 package builder
 
 import (
+	"log"
 	"sync"
+	"time"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/golang/protobuf/ptypes"
@@ -18,17 +20,49 @@ import (
 
 type synchronousBuildJob struct {
 	name             string
+	actionDigest     *remoteexecution.Digest
 	deduplicationKey string
 	executeRequest   remoteexecution.ExecuteRequest
+
+	executeResponse *remoteexecution.ExecuteResponse
+	executeError    error
 }
 
 func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
-	// TODO(edsch): Implement!
-	return nil
+	metadata, err := ptypes.MarshalAny(&remoteexecution.ExecuteOperationMetadata{
+		Stage:        remoteexecution.ExecuteOperationMetadata_QUEUED,
+		ActionDigest: bj.actionDigest,
+		// TODO(edsch): Do we need StdoutStreamName and StderrStreamName? Bazel doesn't seem to use them.
+	})
+	if err != nil {
+		log.Fatal("Failed to marshal execute operation metadata: ", err)
+	}
+	operation := &longrunning.Operation{
+		Name:     bj.name,
+		Metadata: metadata,
+	}
+	if bj.executeResponse != nil {
+		operation.Done = true
+		response, err := ptypes.MarshalAny(bj.executeResponse)
+		if err != nil {
+			log.Fatal("Failed to marshal execute response: ", err)
+		}
+		operation.Result = &longrunning.Operation_Response{Response: response}
+	} else if bj.executeError != nil {
+		s, _ := status.FromError(bj.executeError)
+		operation.Done = true
+		operation.Result = &longrunning.Operation_Error{Error: s.Proto()}
+	}
+	return operation
 }
 
 func (bj *synchronousBuildJob) waitForTransition() {
-	// TODO(edsch): Implement!
+	if bj.executeResponse != nil || bj.executeError != nil {
+		return
+	}
+
+	// TODO(edsch): Implement this properly.
+	time.Sleep(time.Second * 5)
 }
 
 type synchronousBuildQueue struct {
@@ -71,13 +105,14 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 	if !ok {
 		job = &synchronousBuildJob{
 			name:             uuid.Must(uuid.NewV4()).String(),
+			actionDigest:     actionDigest,
 			deduplicationKey: deduplicationKey,
 			executeRequest:   *request,
 		}
 		bq.jobsNameMap[job.name] = job
 		bq.jobsPending = append(bq.jobsPending, job)
 		bq.jobsPendingInsertionWakeup.Signal()
-		bq.jobsPendingDeduplicationMap[job.deduplicationKey] = job
+		bq.jobsPendingDeduplicationMap[deduplicationKey] = job
 	}
 	return job.getCurrentState(), nil
 }
@@ -93,18 +128,21 @@ func (bq *synchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_
 
 	for {
 		state := job.getCurrentState()
+		log.Print("Returning state: ", state)
 		stateAny, err := ptypes.MarshalAny(state)
 		if err != nil {
 			return err
 		}
-		out.Send(&watcher.ChangeBatch{
+		if err := out.Send(&watcher.ChangeBatch{
 			Changes: []*watcher.Change{
 				{
 					State: watcher.Change_EXISTS,
 					Data:  stateAny,
 				},
 			},
-		})
+		}); err != nil {
+			return err
+		}
 		if state.Done {
 			return nil
 		}

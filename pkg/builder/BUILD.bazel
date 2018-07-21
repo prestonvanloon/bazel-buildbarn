@@ -16,9 +16,12 @@ go_library(
         "//pkg/util:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
         "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@com_github_satori_go_uuid//:go_default_library",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@go_googleapis//google/watcher/v1:watcher_go_proto",
+        "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
         "@org_golang_x_net//context:go_default_library",
     ],
 )

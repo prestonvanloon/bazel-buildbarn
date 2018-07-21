@@ -29,6 +29,12 @@ go_repository(
 )
 
 go_repository(
+    name = "com_github_satori_go_uuid",
+    commit = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e",
+    importpath = "github.com/satori/go.uuid",
+)
+
+go_repository(
     name = "org_golang_google_genproto",
     commit = "e92b116572682a5b432ddd840aeaba2a559eeff1",
     importpath = "google.golang.org/genproto",

@@ -3,7 +3,6 @@ package builder
 import (
 	"log"
 	"sync"
-	"time"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/golang/protobuf/ptypes"
@@ -24,8 +23,9 @@ type synchronousBuildJob struct {
 	deduplicationKey string
 	executeRequest   remoteexecution.ExecuteRequest
 
-	executeResponse *remoteexecution.ExecuteResponse
-	executeError    error
+	executeResponse         *remoteexecution.ExecuteResponse
+	executeError            error
+	executeTransitionWakeup *sync.Cond
 }
 
 func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
@@ -57,17 +57,15 @@ func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 }
 
 func (bj *synchronousBuildJob) waitForTransition() {
-	if bj.executeResponse != nil || bj.executeError != nil {
-		return
+	for bj.executeResponse == nil && bj.executeError == nil {
+		bj.executeTransitionWakeup.Wait()
 	}
-
-	// TODO(edsch): Implement this properly.
-	time.Sleep(time.Second * 5)
 }
 
 type synchronousBuildQueue struct {
 	buildExecutor      BuildExecutor
 	deduplicationKeyer util.DigestKeyer
+	jobsPendingMax     uint
 
 	jobsLock                    sync.Mutex
 	jobsNameMap                 map[string]*synchronousBuildJob
@@ -76,10 +74,11 @@ type synchronousBuildQueue struct {
 	jobsPendingDeduplicationMap map[string]*synchronousBuildJob
 }
 
-func NewSynchronousBuildQueue(buildExecutor BuildExecutor, deduplicationKeyer util.DigestKeyer) BuildQueue {
+func NewSynchronousBuildQueue(buildExecutor BuildExecutor, deduplicationKeyer util.DigestKeyer, jobsPendingMax uint) BuildQueue {
 	bq := &synchronousBuildQueue{
 		buildExecutor:      buildExecutor,
 		deduplicationKeyer: deduplicationKeyer,
+		jobsPendingMax:     jobsPendingMax,
 
 		jobsNameMap:                 map[string]*synchronousBuildJob{},
 		jobsPendingDeduplicationMap: map[string]*synchronousBuildJob{},
@@ -103,11 +102,16 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 
 	job, ok := bq.jobsPendingDeduplicationMap[deduplicationKey]
 	if !ok {
+		if uint(len(bq.jobsPending)) >= bq.jobsPendingMax {
+			return nil, status.Errorf(codes.ResourceExhausted, "Too many jobs pending")
+		}
+
 		job = &synchronousBuildJob{
-			name:             uuid.Must(uuid.NewV4()).String(),
-			actionDigest:     actionDigest,
-			deduplicationKey: deduplicationKey,
-			executeRequest:   *request,
+			name:                    uuid.Must(uuid.NewV4()).String(),
+			actionDigest:            actionDigest,
+			deduplicationKey:        deduplicationKey,
+			executeRequest:          *request,
+			executeTransitionWakeup: sync.NewCond(&bq.jobsLock),
 		}
 		bq.jobsNameMap[job.name] = job
 		bq.jobsPending = append(bq.jobsPending, job)

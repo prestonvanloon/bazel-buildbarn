@@ -12,13 +12,13 @@ import (
 
 type cachedBuildQueue struct {
 	actionCache blobstore.BlobAccess
-	fallback BuildQueue
+	fallback    BuildQueue
 }
 
 func NewCachedBuildQueue(actionCache blobstore.BlobAccess, fallback BuildQueue) BuildQueue {
 	return &cachedBuildQueue{
 		actionCache: actionCache,
-		fallback: fallback,
+		fallback:    fallback,
 	}
 }
 

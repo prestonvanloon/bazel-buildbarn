@@ -30,7 +30,7 @@ func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess) Build
 	}
 }
 
-func (be *localBuildExecutor) createFile(instance string, digest *remoteexecution.Digest, base string, isExecutable bool) error {
+func (be *localBuildExecutor) createInputFile(instance string, digest *remoteexecution.Digest, base string, isExecutable bool) error {
 	var mode os.FileMode = 0444
 	if isExecutable {
 		mode = 0555
@@ -49,7 +49,7 @@ func (be *localBuildExecutor) createFile(instance string, digest *remoteexecutio
 	return err
 }
 
-func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexecution.Digest, base string) error {
+func (be *localBuildExecutor) createInputDirectory(instance string, digest *remoteexecution.Digest, base string) error {
 	if err := os.Mkdir(base, 0555); err != nil {
 		return err
 	}
@@ -61,13 +61,13 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 
 	for _, file := range directory.Files {
 		// TODO(edsch): Path validation?
-		if err := be.createFile(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
+		if err := be.createInputFile(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
 			return err
 		}
 	}
 	for _, directory := range directory.Directories {
 		// TODO(edsch): Path validation?
-		if err := be.createDirectory(instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
+		if err := be.createInputDirectory(instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
 			return err
 		}
 	}
@@ -77,7 +77,7 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.ExecuteRequest) error {
 	// Copy input files into build environment.
 	os.RemoveAll(pathBuildRoot)
-	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
+	if err := be.createInputDirectory(request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return err
 	}

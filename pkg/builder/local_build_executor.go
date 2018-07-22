@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -16,9 +18,10 @@ import (
 )
 
 const (
-	pathBuildRoot = "/build"
-	pathStdout    = "/stdout"
-	pathStderr    = "/stderr"
+	pathBuildRoot        = "/build"
+	pathStdout           = "/stdout"
+	pathStderr           = "/stderr"
+	outputInCasThreshold = 1024
 )
 
 type localBuildExecutor struct {
@@ -147,24 +150,53 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) uploadFileOrInline(path string) (*remoteexecution.Digest, []byte, bool, error) {
+func (be *localBuildExecutor) uploadFileOrInline(instance string, path string) (*remoteexecution.Digest, []byte, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, nil, false, err
 	}
 	defer file.Close()
 
-	// TODO(edsch): Upload to CAS if file is too large.
 	info, err := file.Stat()
 	if err != nil {
 		return nil, nil, false, err
 	}
+	isExecutable := (info.Mode() & 0111) != 0
+	size := info.Size()
 
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, nil, false, err
+	if size > outputInCasThreshold {
+		// File is large. Walk through the file to compute the digest.
+		hasher := sha256.New()
+		if _, err := io.Copy(hasher, file); err != nil {
+			return nil, nil, false, err
+		}
+		digest := &remoteexecution.Digest{
+			Hash:      hex.EncodeToString(hasher.Sum(nil)),
+			SizeBytes: size,
+		}
+		if _, err := file.Seek(0, 0); err != nil {
+			return nil, nil, false, err
+		}
+
+		// Store in content addressable storage.
+		w, err := be.contentAddressableStorage.Put(instance, digest)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		if _, err := io.Copy(w, file); err != nil {
+			w.Abandon()
+			return nil, nil, false, err
+		}
+		w.Close()
+		return digest, nil, isExecutable, nil
+	} else {
+		// File is small. Store in ExecuteResponse directly.
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		return nil, content, isExecutable, nil
 	}
-	return nil, content, (info.Mode() & 0111) != 0, err
 }
 
 func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
@@ -185,11 +217,11 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// Upload command output.
-	stdoutDigest, stdoutContent, _, err := be.uploadFileOrInline(pathStdout)
+	stdoutDigest, stdoutContent, _, err := be.uploadFileOrInline(request.InstanceName, pathStdout)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, stderrContent, _, err := be.uploadFileOrInline(pathStderr)
+	stderrDigest, stderrContent, _, err := be.uploadFileOrInline(request.InstanceName, pathStderr)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +239,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		digest, content, isExecutable, err := be.uploadFileOrInline(path.Join(pathBuildRoot, outputFile))
+		digest, content, isExecutable, err := be.uploadFileOrInline(request.InstanceName, path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			// TODO(edsch): Bail out of we see something other than ENOENT.
 			continue

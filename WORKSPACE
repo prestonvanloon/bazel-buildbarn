@@ -38,6 +38,24 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_grep",
+    sha256 = "0704a54bfa9fb8e1045704cd7ce6f2f652a2cef9857fdd39cef97fd97c6d4d01",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/grep/grep_2.27-2_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libacl1",
+    sha256 = "f5057ce95c6a6cf086253aa894f1d1c9bb3c13227224d389d8631190930a236d",
+    url = "http://ftp.nl.debian.org/debian/pool/main/a/acl/libacl1_2.2.52-3+b1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libattr1",
+    sha256 = "b6c67690972c224643d85aed608f448c9c3e531fa13da3c3c1f17743c66015a4",
+    url = "http://ftp.nl.debian.org/debian/pool/main/a/attr/libattr1_2.4.47-2+b2_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_libc6",
     sha256 = "e57b3e24ea79fcdb46549d4ed2b95bb9657f21bba60ed5d9136d5b7112500084",
     url = "http://ftp.nl.debian.org/debian/pool/main/g/glibc/libc6_2.24-11+deb9u3_amd64.deb",
@@ -89,6 +107,12 @@ http_file(
     name = "debian_deb_python_minimal",
     sha256 = "425f1e6b2e1047a208b2e7c334455b8db2d0c03ea1ca761c4f53893a244c65c9",
     url = "http://ftp.nl.debian.org/debian/pool/main/p/python-defaults/python-minimal_2.7.13-2_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_sed",
+    sha256 = "0b241948d78b5b61755f29515bd7c3d60f8119f54176d9a7c454a3dd7b7a7b09",
+    url = "http://ftp.nl.debian.org/debian/pool/main/s/sed/sed_4.4-1_amd64.deb",
 )
 
 http_file(

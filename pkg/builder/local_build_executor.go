@@ -80,12 +80,20 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 }
 
 func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
-	// Initialize build environment.
+	// Copy input files into build environment.
 	buildRoot := "/build"
 	os.RemoveAll(buildRoot)
 	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, buildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err
+	}
+
+	// Create writable directories for all output files.
+	for _, outputFile := range request.Action.OutputFiles {
+		// TODO(edsch): Path validation?
+		if err := os.MkdirAll(path.Dir(path.Join(buildRoot, outputFile)), 0555); err != nil {
+			return nil, err
+		}
 	}
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Path validation?

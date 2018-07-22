@@ -181,5 +181,8 @@ func (bq *SynchronousBuildQueue) Run() {
 		job.executeResponse = executeResponse
 		job.executeError = err
 		job.executeTransitionWakeup.Broadcast()
+		if job.executeError != nil {
+			log.Print(job.executeError)
+		}
 	}
 }

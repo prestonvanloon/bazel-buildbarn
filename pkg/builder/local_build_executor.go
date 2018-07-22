@@ -101,6 +101,9 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 			return nil, err
 		}
 	}
+	if len(request.Action.OutputDirectories) != 0 {
+		return nil, errors.New("Output directories not yet supported!")
+	}
 
 	// Get command to run.
 	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)
@@ -160,11 +163,40 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 	cmd.Run()
 	// TODO(edsch): Set error code properly!
-	return &remoteexecution.ExecuteResponse{
+	response := &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
 			ExitCode:  123,
 			StdoutRaw: stdout.Bytes(),
 			StderrRaw: stderr.Bytes(),
 		},
-	}, nil
+	}
+
+	// Collect output files.
+	for _, outputFile := range request.Action.OutputFiles {
+		// TODO(edsch): Sanitize paths?
+		file, err := os.Open(path.Join(buildRoot, outputFile))
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		info, err := file.Stat()
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO(edsch): Store large files in external blobs.
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, err
+		}
+
+		response.Result.OutputFiles = append(response.Result.OutputFiles, &remoteexecution.OutputFile{
+			Path:         outputFile,
+			Content:      content,
+			IsExecutable: (info.Mode() & 0111) != 0,
+		})
+	}
+	// TODO(edsch): Output directories.
+	return response, nil
 }

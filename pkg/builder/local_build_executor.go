@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"os/exec"
@@ -22,8 +23,6 @@ func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess) Build
 }
 
 func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
-	log.Print("Got ExecuteRequest:", request)
-
 	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)
 	if err != nil {
 		log.Print("Execution.Execute: ", err)
@@ -39,43 +38,44 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		log.Print("Execution.Execute: ", err)
 		return nil, err
 	}
-	log.Print("Got command: ", command)
 
-	r, err = be.contentAddressableStorage.Get(request.InstanceName, request.Action.InputRootDigest)
-	if err != nil {
-		log.Print("Execution.Execute: ", err)
-		return nil, err
-	}
-	inputRootData, err := ioutil.ReadAll(r)
-	if err != nil {
-		log.Print("Execution.Execute: ", err)
-		return nil, err
-	}
-	var inputRoot remoteexecution.Directory
-	if err := proto.Unmarshal(inputRootData, &inputRoot); err != nil {
-		log.Print("Execution.Execute: ", err)
-		return nil, err
-	}
-	log.Print("Got input root: ", inputRoot)
+	// TODO(edsch): Set up file system.
+	/*
+		r, err = be.contentAddressableStorage.Get(request.InstanceName, request.Action.InputRootDigest)
+		if err != nil {
+			log.Print("Execution.Execute: ", err)
+			return nil, err
+		}
+		inputRootData, err := ioutil.ReadAll(r)
+		if err != nil {
+			log.Print("Execution.Execute: ", err)
+			return nil, err
+		}
+		var inputRoot remoteexecution.Directory
+		if err := proto.Unmarshal(inputRootData, &inputRoot); err != nil {
+			log.Print("Execution.Execute: ", err)
+			return nil, err
+		}
+		log.Print("Got input root: ", inputRoot)
+	*/
 
 	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
 	// TODO(edsch): Test len(command.Arguments) properly!
-	cmd := exec.Command(command.Arguments[0], command.Arguments...)
+	cmd := exec.Command(command.Arguments[0], command.Arguments[1:]...)
 	for _, environmentVariable := range command.EnvironmentVariables {
 		cmd.Env = append(cmd.Env, environmentVariable.Name+"="+environmentVariable.Value)
 	}
-	if err := cmd.Run(); err != nil {
-		return &remoteexecution.ExecuteResponse{
-			Result: &remoteexecution.ActionResult{
-				ExitCode:  123,
-				StderrRaw: []byte(err.Error() + "\n"),
-			},
-		}, nil
-	}
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	stderr := bytes.NewBuffer(nil)
+	cmd.Stderr = stderr
+	cmd.Run()
+	// TODO(edsch): Set error code properly!
 	return &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
 			ExitCode:  123,
-			StderrRaw: []byte("Completed?\n"),
+			StdoutRaw: stdout.Bytes(),
+			StderrRaw: stderr.Bytes(),
 		},
 	}, nil
 }

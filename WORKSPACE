@@ -19,6 +19,36 @@ http_archive(
     urls = ["https://github.com/bazelbuild/bazel-gazelle/releases/download/0.13.0/bazel-gazelle-0.13.0.tar.gz"],
 )
 
+http_file(
+    name = "debian_deb_bash",
+    sha256 = "ec375aa432a743ec44781cb91802f5752021e7e107b48ee2e9aa2f7b9fc23f86",
+    url = "http://ftp.nl.debian.org/debian/pool/main/b/bash/bash_4.4-5_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_dash",
+    sha256 = "5084b7e30fde9c51c4312f4da45d4fdfb861ab91c1d514a164dcb8afd8612f65",
+    url = "http://ftp.nl.debian.org/debian/pool/main/d/dash/dash_0.5.8-2.4_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libc6",
+    sha256 = "e57b3e24ea79fcdb46549d4ed2b95bb9657f21bba60ed5d9136d5b7112500084",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/glibc/libc6_2.24-11+deb9u3_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libgcc1",
+    sha256 = "423a6541ee7ade69967c99492e267e724fd4675de53310861af5d1a1d249c4bf",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/libgcc1_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libtinfo5",
+    sha256 = "1d249a3193568b5ef785ad8993b9ba6d6fdca0eb359204c2355532b82d25e9f5",
+    url = "http://ftp.nl.debian.org/debian/pool/main/n/ncurses/libtinfo5_6.0+20161126-1+deb9u2_amd64.deb",
+)
+
 load("@io_bazel_rules_docker//container:container.bzl", "container_pull", container_repositories = "repositories")
 
 container_repositories()

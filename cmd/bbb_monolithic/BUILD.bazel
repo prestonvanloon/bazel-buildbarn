@@ -35,13 +35,7 @@ go_binary(
 
 container_image(
     name = "bbb_monolithic_container",
-    debs = [
-        "@debian_deb_bash//file",
-        "@debian_deb_dash//file",
-        "@debian_deb_libc6//file",
-        "@debian_deb_libgcc1//file",
-        "@debian_deb_libtinfo5//file",
-    ],
+    base = "//tools/debian_base",
     entrypoint = ["/bbb_monolithic"],
     files = [":bbb_monolithic"],
 )

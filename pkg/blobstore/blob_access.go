@@ -12,6 +12,7 @@ type WriteCloser interface {
 }
 
 type BlobAccess interface {
+	// TODO(edsch): Should this be ReadCloser?
 	Get(instance string, digest *remoteexecution.Digest) (io.Reader, error)
 	Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error)
 	FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)

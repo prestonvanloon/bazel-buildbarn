@@ -1,0 +1,23 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+
+container_image(
+    name = "debian_base",
+    data_path = ".",
+    debs = [
+        "@debian_deb_bash//file",
+        "@debian_deb_coreutils//file",
+        "@debian_deb_dash//file",
+        "@debian_deb_libc6//file",
+        "@debian_deb_libgcc1//file",
+        "@debian_deb_libpcre3//file",
+        "@debian_deb_libpython27_minimal//file",
+        "@debian_deb_libpython27_stdlib//file",
+        "@debian_deb_libselinux1//file",
+        "@debian_deb_libtinfo5//file",
+        "@debian_deb_python27_minimal//file",
+        "@debian_deb_python_minimal//file",
+        "@debian_deb_zlib1g//file",
+    ],
+    files = ["etc/passwd"],
+    visibility = ["//cmd:__subpackages__"],
+)

@@ -65,11 +65,13 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 	}
 
 	for _, file := range directory.Files {
+		// TODO(edsch): Path validation?
 		if err := be.createFile(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
 			return err
 		}
 	}
 	for _, directory := range directory.Directories {
+		// TODO(edsch): Path validation?
 		if err := be.createDirectory(instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
 			return err
 		}
@@ -80,12 +82,13 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
 	// Initialize build environment.
 	buildRoot := "/build"
-	os.RemoveAll("/build")
+	os.RemoveAll(buildRoot)
 	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, buildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err
 	}
 	for _, outputFile := range request.Action.OutputFiles {
+		// TODO(edsch): Path validation?
 		if err := os.Chmod(path.Dir(path.Join(buildRoot, outputFile)), 0777); err != nil {
 			return nil, err
 		}

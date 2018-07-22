@@ -176,7 +176,8 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		// TODO(edsch): Sanitize paths?
 		file, err := os.Open(path.Join(buildRoot, outputFile))
 		if err != nil {
-			return nil, err
+			// TODO(edsch): Bail out of we see something other than ENOENT.
+			continue
 		}
 		defer file.Close()
 

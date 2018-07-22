@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -18,6 +17,8 @@ import (
 
 const (
 	pathBuildRoot = "/build"
+	pathStdout    = "/stdout"
+	pathStderr    = "/stderr"
 )
 
 type localBuildExecutor struct {
@@ -104,19 +105,15 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 	return os.Mkdir("/tmp", 0777)
 }
 
-func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
-	if err := be.prepareFilesystem(request); err != nil {
-		return nil, err
-	}
-
-	// Get command to run.
+func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest) error {
+	// Fetch command.
 	var command remoteexecution.Command
 	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
 		log.Print("Execution.Execute: ", err)
-		return nil, err
+		return err
 	}
 	if len(command.Arguments) < 1 {
-		return nil, errors.New("Insufficent number of command arguments")
+		return errors.New("Insufficent number of command arguments")
 	}
 
 	// Prepare the command to run.
@@ -126,20 +123,59 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	for _, environmentVariable := range command.EnvironmentVariables {
 		cmd.Env = append(cmd.Env, environmentVariable.Name+"="+environmentVariable.Value)
 	}
-	stdout := bytes.NewBuffer(nil)
+
+	// Output streams.
+	stdout, err := os.OpenFile(pathStdout, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0)
+	if err != nil {
+		return err
+	}
+	defer stdout.Close()
 	cmd.Stdout = stdout
-	stderr := bytes.NewBuffer(nil)
+	stderr, err := os.OpenFile(pathStderr, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0)
+	if err != nil {
+		return err
+	}
+	defer stderr.Close()
 	cmd.Stderr = stderr
+
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
 			Uid: 1,
 			Gid: 1,
 		},
 	}
+	return cmd.Run()
+}
 
-	// Run the command.
+func (be *localBuildExecutor) maybeUploadFile(path string) (*remoteexecution.Digest, []byte, bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	defer file.Close()
+
+	// TODO(edsch): Upload to CAS if file is too large.
+	info, err := file.Stat()
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	return nil, content, (info.Mode() & 0111) != 0, err
+}
+
+func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+	// Set up inputs.
+	if err := be.prepareFilesystem(request); err != nil {
+		return nil, err
+	}
+
+	// Invoke command.
 	exitCode := 0
-	if err := cmd.Run(); err != nil {
+	if err := be.runCommand(request); err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			waitStatus := exitError.Sys().(syscall.WaitStatus)
 			exitCode = waitStatus.ExitStatus()
@@ -147,41 +183,42 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 			return nil, err
 		}
 	}
+
+	// Upload command output.
+	stdoutDigest, stdoutContent, _, err := be.maybeUploadFile(pathStdout)
+	if err != nil {
+		return nil, err
+	}
+	stderrDigest, stderrContent, _, err := be.maybeUploadFile(pathStderr)
+	if err != nil {
+		return nil, err
+	}
+
 	response := &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
-			ExitCode:  int32(exitCode),
-			StdoutRaw: stdout.Bytes(),
-			StderrRaw: stderr.Bytes(),
+			ExitCode:     int32(exitCode),
+			StdoutRaw:    stdoutContent,
+			StdoutDigest: stdoutDigest,
+			StderrRaw:    stderrContent,
+			StderrDigest: stderrDigest,
 		},
 	}
 
-	// Collect output files.
+	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		file, err := os.Open(path.Join(pathBuildRoot, outputFile))
+		digest, content, isExecutable, err := be.maybeUploadFile(path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			// TODO(edsch): Bail out of we see something other than ENOENT.
 			continue
 		}
-		defer file.Close()
-
-		info, err := file.Stat()
-		if err != nil {
-			return nil, err
-		}
-
-		// TODO(edsch): Store large files in external blobs.
-		content, err := ioutil.ReadAll(file)
-		if err != nil {
-			return nil, err
-		}
-
 		response.Result.OutputFiles = append(response.Result.OutputFiles, &remoteexecution.OutputFile{
 			Path:         outputFile,
+			Digest:       digest,
 			Content:      content,
-			IsExecutable: (info.Mode() & 0111) != 0,
+			IsExecutable: isExecutable,
 		})
 	}
-	// TODO(edsch): Collect output directories.
+	// TODO(edsch): Upload output directories.
 	return response, nil
 }

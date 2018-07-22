@@ -147,7 +147,7 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) maybeUploadFile(path string) (*remoteexecution.Digest, []byte, bool, error) {
+func (be *localBuildExecutor) uploadFileOrInline(path string) (*remoteexecution.Digest, []byte, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, nil, false, err
@@ -185,11 +185,11 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// Upload command output.
-	stdoutDigest, stdoutContent, _, err := be.maybeUploadFile(pathStdout)
+	stdoutDigest, stdoutContent, _, err := be.uploadFileOrInline(pathStdout)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, stderrContent, _, err := be.maybeUploadFile(pathStderr)
+	stderrDigest, stderrContent, _, err := be.uploadFileOrInline(pathStderr)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		digest, content, isExecutable, err := be.maybeUploadFile(path.Join(pathBuildRoot, outputFile))
+		digest, content, isExecutable, err := be.uploadFileOrInline(path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			// TODO(edsch): Bail out of we see something other than ENOENT.
 			continue

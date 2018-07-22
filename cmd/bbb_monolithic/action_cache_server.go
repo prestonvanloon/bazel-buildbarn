@@ -1,11 +1,9 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
-	"github.com/golang/protobuf/proto"
 
 	"golang.org/x/net/context"
 
@@ -25,18 +23,8 @@ func NewActionCacheServer(actionCache blobstore.BlobAccess) remoteexecution.Acti
 }
 
 func (s *actionCacheServer) GetActionResult(ctx context.Context, in *remoteexecution.GetActionResultRequest) (*remoteexecution.ActionResult, error) {
-	r, err := s.actionCache.Get(in.InstanceName, in.ActionDigest)
-	if err != nil {
-		log.Print("actionCacheServer.GetActionResult: ", err)
-		return nil, err
-	}
-	actionResultData, err := ioutil.ReadAll(r)
-	if err != nil {
-		log.Print("actionCacheServer.GetActionResult: ", err)
-		return nil, err
-	}
 	var actionResult remoteexecution.ActionResult
-	if err := proto.Unmarshal(actionResultData, &actionResult); err != nil {
+	if err := blobstore.GetMessageFromBlobAccess(s.actionCache, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
 		log.Print("actionCacheServer.GetActionResult: ", err)
 		return nil, err
 	}

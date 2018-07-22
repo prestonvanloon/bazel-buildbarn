@@ -12,9 +12,12 @@ import (
 	"syscall"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
-	"github.com/golang/protobuf/proto"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+)
+
+const (
+	pathBuildRoot = "/build"
 )
 
 type localBuildExecutor struct {
@@ -51,16 +54,8 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 		return err
 	}
 
-	r, err := be.contentAddressableStorage.Get(instance, digest)
-	if err != nil {
-		return err
-	}
-	directoryData, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
 	var directory remoteexecution.Directory
-	if err := proto.Unmarshal(directoryData, &directory); err != nil {
+	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, instance, digest, &directory); err != nil {
 		return err
 	}
 
@@ -79,51 +74,44 @@ func (be *localBuildExecutor) createDirectory(instance string, digest *remoteexe
 	return nil
 }
 
-func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.ExecuteRequest) error {
 	// Copy input files into build environment.
-	buildRoot := "/build"
-	os.RemoveAll(buildRoot)
-	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, buildRoot); err != nil {
+	os.RemoveAll(pathBuildRoot)
+	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
-		return nil, err
+		return err
 	}
 
 	// Create writable directories for all output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Path validation?
-		if err := os.MkdirAll(path.Dir(path.Join(buildRoot, outputFile)), 0555); err != nil {
-			return nil, err
+		if err := os.MkdirAll(path.Dir(path.Join(pathBuildRoot, outputFile)), 0555); err != nil {
+			return err
 		}
 	}
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Path validation?
-		if err := os.Chmod(path.Dir(path.Join(buildRoot, outputFile)), 0777); err != nil {
-			return nil, err
+		if err := os.Chmod(path.Dir(path.Join(pathBuildRoot, outputFile)), 0777); err != nil {
+			return err
 		}
 	}
 	if len(request.Action.OutputDirectories) != 0 {
-		return nil, errors.New("Output directories not yet supported!")
+		return errors.New("Output directories not yet supported!")
 	}
 
 	// Provide a clean temp directory.
 	os.RemoveAll("/tmp")
-	if err := os.Mkdir("/tmp", 0777); err != nil {
+	return os.Mkdir("/tmp", 0777)
+}
+
+func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+	if err := be.prepareFilesystem(request); err != nil {
 		return nil, err
 	}
 
 	// Get command to run.
-	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)
-	if err != nil {
-		log.Print("Execution.Execute: ", err)
-		return nil, err
-	}
-	commandData, err := ioutil.ReadAll(r)
-	if err != nil {
-		log.Print("Execution.Execute: ", err)
-		return nil, err
-	}
 	var command remoteexecution.Command
-	if err := proto.Unmarshal(commandData, &command); err != nil {
+	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err
 	}
@@ -131,30 +119,10 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		return nil, errors.New("Insufficent number of command arguments")
 	}
 
-	// TODO(edsch): Set up file system.
-	/*
-		r, err = be.contentAddressableStorage.Get(request.InstanceName, request.Action.InputRootDigest)
-		if err != nil {
-			log.Print("Execution.Execute: ", err)
-			return nil, err
-		}
-		inputRootData, err := ioutil.ReadAll(r)
-		if err != nil {
-			log.Print("Execution.Execute: ", err)
-			return nil, err
-		}
-		var inputRoot remoteexecution.Directory
-		if err := proto.Unmarshal(inputRootData, &inputRoot); err != nil {
-			log.Print("Execution.Execute: ", err)
-			return nil, err
-		}
-		log.Print("Got input root: ", inputRoot)
-	*/
-
 	// Prepare the command to run.
 	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
 	cmd := exec.Command(command.Arguments[0], command.Arguments[1:]...)
-	cmd.Dir = buildRoot
+	cmd.Dir = pathBuildRoot
 	for _, environmentVariable := range command.EnvironmentVariables {
 		cmd.Env = append(cmd.Env, environmentVariable.Name+"="+environmentVariable.Value)
 	}
@@ -190,7 +158,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Collect output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		file, err := os.Open(path.Join(buildRoot, outputFile))
+		file, err := os.Open(path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			// TODO(edsch): Bail out of we see something other than ENOENT.
 			continue

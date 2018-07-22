@@ -110,9 +110,6 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	if err := os.Mkdir("/tmp", 0777); err != nil {
 		return nil, err
 	}
-	if err := os.Chmod("/tmp", 0777); err != nil {
-		return nil, err
-	}
 
 	// Get command to run.
 	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)

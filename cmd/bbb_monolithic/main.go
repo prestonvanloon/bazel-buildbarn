@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"syscall"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
@@ -15,6 +16,9 @@ import (
 )
 
 func main() {
+	// Respect file permissions that we pass to os.OpenFile(), os.Mkdir(), etc.
+	syscall.Umask(0)
+
 	sock, err := net.Listen("tcp", ":8980")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

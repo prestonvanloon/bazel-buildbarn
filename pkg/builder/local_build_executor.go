@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"errors"
 	"io/ioutil"
 	"log"
 
@@ -58,5 +57,10 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 	log.Print("Got input root: ", inputRoot)
 
-	return nil, errors.New("Fail!")
+	return &remoteexecution.ExecuteResponse{
+		Result: &remoteexecution.ActionResult{
+			ExitCode:  123,
+			StderrRaw: []byte("Execution not yet implemented\n"),
+		},
+	}, nil
 }

@@ -7,6 +7,7 @@ container_image(
         "@debian_deb_bash//file",
         "@debian_deb_coreutils//file",
         "@debian_deb_dash//file",
+        "@debian_deb_findutils//file",
         "@debian_deb_grep//file",
         "@debian_deb_libacl1//file",
         "@debian_deb_libattr1//file",

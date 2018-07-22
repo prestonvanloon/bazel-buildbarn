@@ -3,6 +3,7 @@ package builder
 import (
 	"io/ioutil"
 	"log"
+	"os/exec"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/golang/protobuf/proto"
@@ -57,10 +58,24 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 	log.Print("Got input root: ", inputRoot)
 
+	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
+	// TODO(edsch): Test len(command.Arguments) properly!
+	cmd := exec.Command(command.Arguments[0], command.Arguments...)
+	for _, environmentVariable := range command.EnvironmentVariables {
+		cmd.Env = append(cmd.Env, environmentVariable.Name+"="+environmentVariable.Value)
+	}
+	if err := cmd.Run(); err != nil {
+		return &remoteexecution.ExecuteResponse{
+			Result: &remoteexecution.ActionResult{
+				ExitCode:  123,
+				StderrRaw: []byte(err.Error() + "\n"),
+			},
+		}, nil
+	}
 	return &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
 			ExitCode:  123,
-			StderrRaw: []byte("Execution not yet implemented\n"),
+			StderrRaw: []byte("Completed?\n"),
 		},
 	}, nil
 }

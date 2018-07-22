@@ -29,27 +29,27 @@ type synchronousBuildJob struct {
 	executeTransitionWakeup *sync.Cond
 }
 
-func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
+func (job *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 	metadata, err := ptypes.MarshalAny(&remoteexecution.ExecuteOperationMetadata{
-		Stage:        bj.stage,
-		ActionDigest: bj.actionDigest,
+		Stage:        job.stage,
+		ActionDigest: job.actionDigest,
 	})
 	if err != nil {
 		log.Fatal("Failed to marshal execute operation metadata: ", err)
 	}
 	operation := &longrunning.Operation{
-		Name:     bj.name,
+		Name:     job.name,
 		Metadata: metadata,
 	}
-	if bj.executeResponse != nil {
+	if job.executeResponse != nil {
 		operation.Done = true
-		response, err := ptypes.MarshalAny(bj.executeResponse)
+		response, err := ptypes.MarshalAny(job.executeResponse)
 		if err != nil {
 			log.Fatal("Failed to marshal execute response: ", err)
 		}
 		operation.Result = &longrunning.Operation_Response{Response: response}
-	} else if bj.executeError != nil {
-		s, _ := status.FromError(bj.executeError)
+	} else if job.executeError != nil {
+		s, _ := status.FromError(job.executeError)
 		operation.Done = true
 		operation.Result = &longrunning.Operation_Error{Error: s.Proto()}
 	}
@@ -58,38 +58,38 @@ func (bj *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 
 // TODO(edsch): Should take a context.
 // TODO(edsch): Should wake up periodically.
-func (bj *synchronousBuildJob) waitForTransition() {
-	if bj.executeResponse == nil && bj.executeError == nil {
-		bj.executeTransitionWakeup.Wait()
+func (job *synchronousBuildJob) waitForTransition() {
+	if job.executeResponse == nil && job.executeError == nil {
+		job.executeTransitionWakeup.Wait()
 	}
 }
 
-type synchronousBuildQueue struct {
+type SynchronousBuildQueue struct {
 	buildExecutor      BuildExecutor
 	deduplicationKeyer util.DigestKeyer
 	jobsPendingMax     uint
 
-	jobsLock                    sync.Mutex
-	jobsNameMap                 map[string]*synchronousBuildJob
-	jobsPending                 []*synchronousBuildJob
-	jobsPendingInsertionWakeup  *sync.Cond
-	jobsPendingDeduplicationMap map[string]*synchronousBuildJob
+	jobsLock                   sync.Mutex
+	jobsNameMap                map[string]*synchronousBuildJob
+	jobsDeduplicationMap       map[string]*synchronousBuildJob
+	jobsPending                []*synchronousBuildJob
+	jobsPendingInsertionWakeup *sync.Cond
 }
 
-func NewSynchronousBuildQueue(buildExecutor BuildExecutor, deduplicationKeyer util.DigestKeyer, jobsPendingMax uint) BuildQueue {
-	bq := &synchronousBuildQueue{
+func NewSynchronousBuildQueue(buildExecutor BuildExecutor, deduplicationKeyer util.DigestKeyer, jobsPendingMax uint) *SynchronousBuildQueue {
+	bq := &SynchronousBuildQueue{
 		buildExecutor:      buildExecutor,
 		deduplicationKeyer: deduplicationKeyer,
 		jobsPendingMax:     jobsPendingMax,
 
-		jobsNameMap:                 map[string]*synchronousBuildJob{},
-		jobsPendingDeduplicationMap: map[string]*synchronousBuildJob{},
+		jobsNameMap:          map[string]*synchronousBuildJob{},
+		jobsDeduplicationMap: map[string]*synchronousBuildJob{},
 	}
 	bq.jobsPendingInsertionWakeup = sync.NewCond(&bq.jobsLock)
 	return bq
 }
 
-func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
+func (bq *SynchronousBuildQueue) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
 	actionDigest, err := util.DigestFromMessage(request.Action)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 	bq.jobsLock.Lock()
 	defer bq.jobsLock.Unlock()
 
-	job, ok := bq.jobsPendingDeduplicationMap[deduplicationKey]
+	job, ok := bq.jobsDeduplicationMap[deduplicationKey]
 	if !ok {
 		if uint(len(bq.jobsPending)) >= bq.jobsPendingMax {
 			return nil, status.Errorf(codes.ResourceExhausted, "Too many jobs pending")
@@ -117,14 +117,14 @@ func (bq *synchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 			executeTransitionWakeup: sync.NewCond(&bq.jobsLock),
 		}
 		bq.jobsNameMap[job.name] = job
+		bq.jobsDeduplicationMap[deduplicationKey] = job
 		bq.jobsPending = append(bq.jobsPending, job)
 		bq.jobsPendingInsertionWakeup.Signal()
-		bq.jobsPendingDeduplicationMap[deduplicationKey] = job
 	}
 	return job.getCurrentState(), nil
 }
 
-func (bq *synchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_WatchServer) error {
+func (bq *SynchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_WatchServer) error {
 	bq.jobsLock.Lock()
 	defer bq.jobsLock.Unlock()
 
@@ -135,7 +135,6 @@ func (bq *synchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_
 
 	for {
 		state := job.getCurrentState()
-		log.Print("Returning state: ", state)
 		stateAny, err := ptypes.MarshalAny(state)
 		if err != nil {
 			return err
@@ -154,5 +153,33 @@ func (bq *synchronousBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_
 			return nil
 		}
 		job.waitForTransition()
+	}
+}
+
+func (bq *SynchronousBuildQueue) Run() {
+	bq.jobsLock.Lock()
+	defer bq.jobsLock.Unlock()
+
+	// TODO(edsch): Purge jobs from the jobsNameMap after some amount of time.
+	for {
+		// Extract job from queue.
+		for len(bq.jobsPending) == 0 {
+			bq.jobsPendingInsertionWakeup.Wait()
+		}
+		job := bq.jobsPending[0]
+		bq.jobsPending = bq.jobsPending[1:]
+
+		// Perform execution of the job.
+		job.stage = remoteexecution.ExecuteOperationMetadata_EXECUTING
+		bq.jobsLock.Unlock()
+		executeResponse, err := bq.buildExecutor.Execute(&job.executeRequest)
+		bq.jobsLock.Lock()
+
+		// Mark completion.
+		delete(bq.jobsDeduplicationMap, job.deduplicationKey)
+		job.stage = remoteexecution.ExecuteOperationMetadata_COMPLETED
+		job.executeResponse = executeResponse
+		job.executeError = err
+		job.executeTransitionWakeup.Broadcast()
 	}
 }

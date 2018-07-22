@@ -23,7 +23,9 @@ func main() {
 	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance))
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
 	actionCache := blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
-	buildQueue := builder.NewCachedBuildQueue(actionCache, builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10))
+	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)
+	go synchronousBuildQueue.Run()
+	buildQueue := builder.NewCachedBuildQueue(actionCache, synchronousBuildQueue)
 
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, NewActionCacheServer(actionCache))

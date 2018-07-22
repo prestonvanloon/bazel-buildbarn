@@ -105,7 +105,7 @@ func (bq *SynchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 	job, ok := bq.jobsDeduplicationMap[deduplicationKey]
 	if !ok {
 		if uint(len(bq.jobsPending)) >= bq.jobsPendingMax {
-			return nil, status.Errorf(codes.ResourceExhausted, "Too many jobs pending")
+			return nil, status.Errorf(codes.Unavailable, "Too many jobs pending")
 		}
 
 		job = &synchronousBuildJob{

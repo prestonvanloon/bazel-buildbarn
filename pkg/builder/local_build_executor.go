@@ -45,6 +45,7 @@ func (be *localBuildExecutor) createInputFile(instance string, digest *remoteexe
 	}
 	defer f.Close()
 
+	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	r, err := be.contentAddressableStorage.Get(instance, digest)
 	if err != nil {
 		return err
@@ -58,6 +59,7 @@ func (be *localBuildExecutor) createInputDirectory(instance string, digest *remo
 		return err
 	}
 
+	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	var directory remoteexecution.Directory
 	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, instance, digest, &directory); err != nil {
 		return err
@@ -100,6 +102,7 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 		}
 	}
 	if len(request.Action.OutputDirectories) != 0 {
+		log.Print("Got output directories: ", request.Action.OutputDirectories)
 		return errors.New("Output directories not yet supported!")
 	}
 
@@ -110,6 +113,7 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 
 func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest) error {
 	// Fetch command.
+	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	var command remoteexecution.Command
 	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
 		log.Print("Execution.Execute: ", err)

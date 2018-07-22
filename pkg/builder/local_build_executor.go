@@ -105,6 +105,15 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		return nil, errors.New("Output directories not yet supported!")
 	}
 
+	// Provide a clean temp directory.
+	os.RemoveAll("/tmp")
+	if err := os.Mkdir("/tmp", 0777); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod("/tmp", 0777); err != nil {
+		return nil, err
+	}
+
 	// Get command to run.
 	r, err := be.contentAddressableStorage.Get(request.InstanceName, request.Action.CommandDigest)
 	if err != nil {
@@ -145,6 +154,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		log.Print("Got input root: ", inputRoot)
 	*/
 
+	// Prepare the command to run.
 	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
 	cmd := exec.Command(command.Arguments[0], command.Arguments[1:]...)
 	cmd.Dir = buildRoot
@@ -161,11 +171,20 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 			Gid: 1,
 		},
 	}
-	cmd.Run()
-	// TODO(edsch): Set error code properly!
+
+	// Run the command.
+	exitCode := 0
+	if err := cmd.Run(); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			exitCode = waitStatus.ExitStatus()
+		} else {
+			return nil, err
+		}
+	}
 	response := &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
-			ExitCode:  123,
+			ExitCode:  int32(exitCode),
 			StdoutRaw: stdout.Bytes(),
 			StderrRaw: stderr.Bytes(),
 		},
@@ -198,6 +217,6 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 			IsExecutable: (info.Mode() & 0111) != 0,
 		})
 	}
-	// TODO(edsch): Output directories.
+	// TODO(edsch): Collect output directories.
 	return response, nil
 }

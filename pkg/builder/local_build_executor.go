@@ -81,14 +81,12 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Initialize build environment.
 	buildRoot := "/build"
 	os.RemoveAll("/build")
-	syscall.Umask(0)
 	if err := be.createDirectory(request.InstanceName, request.Action.InputRootDigest, buildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return nil, err
 	}
 	for _, outputFile := range request.Action.OutputFiles {
-		log.Print(outputFile)
-		if err := os.MkdirAll(path.Dir(path.Join(buildRoot, outputFile)), 0777); err != nil {
+		if err := os.Chmod(path.Dir(path.Join(buildRoot, outputFile)), 0777); err != nil {
 			return nil, err
 		}
 	}

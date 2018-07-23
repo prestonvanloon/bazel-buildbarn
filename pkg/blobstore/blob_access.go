@@ -32,3 +32,19 @@ func GetMessageFromBlobAccess(blobAccess BlobAccess, instance string, digest *re
 	}
 	return proto.Unmarshal(data, out)
 }
+
+func PutMessageToBlobAccess(blobAccess BlobAccess, instance string, digest *remoteexecution.Digest, in proto.Message) error {
+	data, err := proto.Marshal(in)
+	if err != nil {
+		return err
+	}
+	w, err := blobAccess.Put(instance, digest)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(data); err != nil {
+		w.Abandon()
+		return err
+	}
+	return w.Close()
+}

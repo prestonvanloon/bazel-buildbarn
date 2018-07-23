@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
@@ -144,7 +146,7 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) uploadFileOrInline(instance string, path string) (*remoteexecution.Digest, []byte, bool, error) {
+func (be *localBuildExecutor) uploadFile(instance string, path string, casThreshold int64) (*remoteexecution.Digest, []byte, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, nil, false, err
@@ -158,7 +160,7 @@ func (be *localBuildExecutor) uploadFileOrInline(instance string, path string) (
 	isExecutable := (info.Mode() & 0111) != 0
 	size := info.Size()
 
-	if size > outputInCasThreshold {
+	if size >= casThreshold {
 		// File is large. Walk through the file to compute the digest.
 		hasher := sha256.New()
 		if _, err := io.Copy(hasher, file); err != nil {
@@ -193,6 +195,76 @@ func (be *localBuildExecutor) uploadFileOrInline(instance string, path string) (
 	}
 }
 
+func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, permitNonexistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
+	files, err := ioutil.ReadDir(basePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var directory remoteexecution.Directory
+	for _, file := range files {
+		name := file.Name()
+		fullPath := path.Join(basePath, name)
+		switch file.Mode() & os.ModeType {
+		case 0:
+			digest, _, isExecutable, err := be.uploadFile(instance, fullPath, 0)
+			if err != nil {
+				return nil, err
+			}
+			directory.Files = append(directory.Files, &remoteexecution.FileNode{
+				Name:         name,
+				Digest:       digest,
+				IsExecutable: isExecutable,
+			})
+		case os.ModeDir:
+			child, err := be.uploadDirectory(instance, path.Join(basePath, name), false, children)
+			if err != nil {
+				return nil, err
+			}
+			digest, err := util.DigestFromMessage(child)
+			if err != nil {
+				return nil, err
+			}
+			children[digest.Hash] = child
+			directory.Directories = append(directory.Directories, &remoteexecution.DirectoryNode{
+				Name:   name,
+				Digest: digest,
+			})
+		default:
+			return nil, fmt.Errorf("Path %s has an unsupported file type", basePath)
+		}
+	}
+	return &directory, nil
+}
+
+func (be *localBuildExecutor) uploadTree(instance string, path string) (*remoteexecution.Digest, error) {
+	// Gather all individual directory objects and turn them into a tree.
+	children := map[string]*remoteexecution.Directory{}
+	root, err := be.uploadDirectory(instance, path, true, children)
+	if root == nil || err != nil {
+		return nil, err
+	}
+	tree := remoteexecution.Tree{
+		Root: root,
+	}
+	for _, child := range children {
+		tree.Children = append(tree.Children, child)
+	}
+
+	// Upload the tree.
+	digest, err := util.DigestFromMessage(root)
+	if err != nil {
+		return nil, err
+	}
+	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, instance, digest, root); err != nil {
+		return nil, err
+	}
+	return digest, nil
+}
+
 func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
 	// Set up inputs.
 	if err := be.prepareFilesystem(request); err != nil {
@@ -211,11 +283,11 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// Upload command output.
-	stdoutDigest, stdoutContent, _, err := be.uploadFileOrInline(request.InstanceName, pathStdout)
+	stdoutDigest, stdoutContent, _, err := be.uploadFile(request.InstanceName, pathStdout, outputInCasThreshold)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, stderrContent, _, err := be.uploadFileOrInline(request.InstanceName, pathStderr)
+	stderrDigest, stderrContent, _, err := be.uploadFile(request.InstanceName, pathStderr, outputInCasThreshold)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +305,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		digest, content, isExecutable, err := be.uploadFileOrInline(request.InstanceName, path.Join(pathBuildRoot, outputFile))
+		digest, content, isExecutable, err := be.uploadFile(request.InstanceName, path.Join(pathBuildRoot, outputFile), outputInCasThreshold)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -249,10 +321,18 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// TODO(edsch): Upload output directories.
-	if len(request.Action.OutputDirectories) != 0 {
-		log.Print("Got output directories: ", request.Action.OutputDirectories)
-		return nil, errors.New("Output directories not yet supported!")
+	for _, outputDirectory := range request.Action.OutputDirectories {
+		// TODO(edsch): Sanitize paths?
+		digest, err := be.uploadTree(request.InstanceName, path.Join(pathBuildRoot, outputDirectory))
+		if err != nil {
+			return nil, err
+		}
+		if digest != nil {
+			response.Result.OutputDirectories = append(response.Result.OutputDirectories, &remoteexecution.OutputDirectory{
+				Path:       outputDirectory,
+				TreeDigest: digest,
+			})
+		}
 	}
-
 	return response, nil
 }

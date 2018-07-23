@@ -9,7 +9,7 @@ import (
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
-type cachedInputFileExposer struct {
+type cachingInputFileExposer struct {
 	base        InputFileExposer
 	digestKeyer util.DigestKeyer
 	path        string
@@ -17,8 +17,8 @@ type cachedInputFileExposer struct {
 	filesPresent map[string]bool
 }
 
-func NewCachedInputFileExposer(base InputFileExposer, digestKeyer util.DigestKeyer, path string) InputFileExposer {
-	return &cachedInputFileExposer{
+func NewCachingInputFileExposer(base InputFileExposer, digestKeyer util.DigestKeyer, path string) InputFileExposer {
+	return &cachingInputFileExposer{
 		base:        base,
 		digestKeyer: digestKeyer,
 		path:        path,
@@ -27,7 +27,7 @@ func NewCachedInputFileExposer(base InputFileExposer, digestKeyer util.DigestKey
 	}
 }
 
-func (fe *cachedInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
+func (fe *cachingInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
 	key, err := fe.digestKeyer(instance, digest)
 	if err != nil {
 		return err

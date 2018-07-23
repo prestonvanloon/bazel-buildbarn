@@ -3,14 +3,14 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "blob_access_input_file_exposer.go",
         "build_executor.go",
         "build_queue.go",
         "cached_build_queue.go",
-        "cached_input_file_exposer.go",
+        "caching_input_file_exposer.go",
         "input_file_exposer.go",
         "local_build_executor.go",
         "synchronous_build_queue.go",
-        "uncached_input_file_exposer.go",
     ],
     importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/builder",
     visibility = ["//visibility:public"],

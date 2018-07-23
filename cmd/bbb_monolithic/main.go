@@ -29,7 +29,7 @@ func main() {
 	if err := os.Mkdir("/cache", 0); err != nil {
 		log.Fatal("Failed to create cache directory: ", err)
 	}
-	inputFileExposer := builder.NewCachedInputFileExposer(builder.NewUncachedInputFileExposer(contentAddressableStorage), util.KeyDigestWithoutInstance, "/cache")
+	inputFileExposer := builder.NewCachingInputFileExposer(builder.NewBlobAccessInputFileExposer(contentAddressableStorage), util.KeyDigestWithoutInstance, "/cache")
 	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage, inputFileExposer)
 	actionCache := blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)

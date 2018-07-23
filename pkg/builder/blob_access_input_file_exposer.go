@@ -9,17 +9,17 @@ import (
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
-type uncachedInputFileExposer struct {
+type blobAccessInputFileExposer struct {
 	contentAddressableStorage blobstore.BlobAccess
 }
 
-func NewUncachedInputFileExposer(contentAddressableStorage blobstore.BlobAccess) InputFileExposer {
-	return &uncachedInputFileExposer{
+func NewBlobAccessInputFileExposer(contentAddressableStorage blobstore.BlobAccess) InputFileExposer {
+	return &blobAccessInputFileExposer{
 		contentAddressableStorage: contentAddressableStorage,
 	}
 }
 
-func (fe *uncachedInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
+func (fe *blobAccessInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
 	var mode os.FileMode = 0444
 	if isExecutable {
 		mode = 0555

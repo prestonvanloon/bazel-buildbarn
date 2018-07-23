@@ -20,10 +20,9 @@ import (
 )
 
 const (
-	pathBuildRoot        = "/build"
-	pathStdout           = "/stdout"
-	pathStderr           = "/stderr"
-	outputInCasThreshold = 1024
+	pathBuildRoot = "/build"
+	pathStdout    = "/stdout"
+	pathStderr    = "/stderr"
 )
 
 type localBuildExecutor struct {
@@ -146,53 +145,42 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) uploadFile(instance string, path string, casThreshold int64) (*remoteexecution.Digest, []byte, bool, error) {
+func (be *localBuildExecutor) uploadFile(instance string, path string) (*remoteexecution.Digest, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 	defer file.Close()
 
 	info, err := file.Stat()
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
-	isExecutable := (info.Mode() & 0111) != 0
-	size := info.Size()
 
-	if size >= casThreshold {
-		// File is large. Walk through the file to compute the digest.
-		hasher := sha256.New()
-		if _, err := io.Copy(hasher, file); err != nil {
-			return nil, nil, false, err
-		}
-		digest := &remoteexecution.Digest{
-			Hash:      hex.EncodeToString(hasher.Sum(nil)),
-			SizeBytes: size,
-		}
-		if _, err := file.Seek(0, 0); err != nil {
-			return nil, nil, false, err
-		}
-
-		// Store in content addressable storage.
-		w, err := be.contentAddressableStorage.Put(instance, digest)
-		if err != nil {
-			return nil, nil, false, err
-		}
-		if _, err := io.Copy(w, file); err != nil {
-			w.Abandon()
-			return nil, nil, false, err
-		}
-		w.Close()
-		return digest, nil, isExecutable, nil
-	} else {
-		// File is small. Store in ExecuteResponse directly.
-		content, err := ioutil.ReadAll(file)
-		if err != nil {
-			return nil, nil, false, err
-		}
-		return nil, content, isExecutable, nil
+	// Walk through the file to compute the digest.
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return nil, false, err
 	}
+	digest := &remoteexecution.Digest{
+		Hash:      hex.EncodeToString(hasher.Sum(nil)),
+		SizeBytes: info.Size(),
+	}
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, false, err
+	}
+
+	// Store in content addressable storage.
+	w, err := be.contentAddressableStorage.Put(instance, digest)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, err := io.Copy(w, file); err != nil {
+		w.Abandon()
+		return nil, false, err
+	}
+	w.Close()
+	return digest, (info.Mode() & 0111) != 0, nil
 }
 
 func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, permitNonExistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
@@ -210,7 +198,7 @@ func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, 
 		fullPath := path.Join(basePath, name)
 		switch file.Mode() & os.ModeType {
 		case 0:
-			digest, _, isExecutable, err := be.uploadFile(instance, fullPath, 0)
+			digest, isExecutable, err := be.uploadFile(instance, fullPath)
 			if err != nil {
 				return nil, err
 			}
@@ -283,11 +271,11 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// Upload command output.
-	stdoutDigest, stdoutContent, _, err := be.uploadFile(request.InstanceName, pathStdout, outputInCasThreshold)
+	stdoutDigest, _, err := be.uploadFile(request.InstanceName, pathStdout)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, stderrContent, _, err := be.uploadFile(request.InstanceName, pathStderr, outputInCasThreshold)
+	stderrDigest, _, err := be.uploadFile(request.InstanceName, pathStderr)
 	if err != nil {
 		return nil, err
 	}
@@ -295,9 +283,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	response := &remoteexecution.ExecuteResponse{
 		Result: &remoteexecution.ActionResult{
 			ExitCode:     int32(exitCode),
-			StdoutRaw:    stdoutContent,
 			StdoutDigest: stdoutDigest,
-			StderrRaw:    stderrContent,
 			StderrDigest: stderrDigest,
 		},
 	}
@@ -305,7 +291,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		digest, content, isExecutable, err := be.uploadFile(request.InstanceName, path.Join(pathBuildRoot, outputFile), outputInCasThreshold)
+		digest, isExecutable, err := be.uploadFile(request.InstanceName, path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -315,7 +301,6 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		response.Result.OutputFiles = append(response.Result.OutputFiles, &remoteexecution.OutputFile{
 			Path:         outputFile,
 			Digest:       digest,
-			Content:      content,
 			IsExecutable: isExecutable,
 		})
 	}

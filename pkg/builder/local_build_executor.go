@@ -245,8 +245,10 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 		// TODO(edsch): Sanitize paths?
 		digest, content, isExecutable, err := be.uploadFileOrInline(request.InstanceName, path.Join(pathBuildRoot, outputFile))
 		if err != nil {
-			// TODO(edsch): Bail out of we see something other than ENOENT.
-			continue
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
 		}
 		response.Result.OutputFiles = append(response.Result.OutputFiles, &remoteexecution.OutputFile{
 			Path:         outputFile,

@@ -55,7 +55,7 @@ func (be *localBuildExecutor) createInputFile(instance string, digest *remoteexe
 }
 
 func (be *localBuildExecutor) createInputDirectory(instance string, digest *remoteexecution.Digest, base string) error {
-	if err := os.Mkdir(base, 0555); err != nil {
+	if err := os.Mkdir(base, 0777); err != nil {
 		return err
 	}
 
@@ -86,24 +86,6 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 	if err := be.createInputDirectory(request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return err
-	}
-
-	// Create writable directories for all output files.
-	for _, outputFile := range request.Action.OutputFiles {
-		// TODO(edsch): Path validation?
-		if err := os.MkdirAll(path.Dir(path.Join(pathBuildRoot, outputFile)), 0555); err != nil {
-			return err
-		}
-	}
-	for _, outputFile := range request.Action.OutputFiles {
-		// TODO(edsch): Path validation?
-		if err := os.Chmod(path.Dir(path.Join(pathBuildRoot, outputFile)), 0777); err != nil {
-			return err
-		}
-	}
-	if len(request.Action.OutputDirectories) != 0 {
-		log.Print("Got output directories: ", request.Action.OutputDirectories)
-		return errors.New("Output directories not yet supported!")
 	}
 
 	// Provide a clean temp directory.
@@ -257,6 +239,12 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 			IsExecutable: isExecutable,
 		})
 	}
+
 	// TODO(edsch): Upload output directories.
+	if len(request.Action.OutputDirectories) != 0 {
+		log.Print("Got output directories: ", request.Action.OutputDirectories)
+		return nil, errors.New("Output directories not yet supported!")
+	}
+
 	return response, nil
 }

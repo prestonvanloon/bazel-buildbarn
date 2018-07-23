@@ -25,7 +25,8 @@ func main() {
 	}
 
 	contentAddressableStorage := blobstore.NewMerkleBlobAccess(blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance))
-	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage)
+	inputFileExposer := builder.NewUncachedInputFileExposer(contentAddressableStorage)
+	buildExecutor := builder.NewLocalBuildExecutor(contentAddressableStorage, inputFileExposer)
 	actionCache := blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)
 	go synchronousBuildQueue.Run()

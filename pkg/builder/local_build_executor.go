@@ -28,32 +28,14 @@ const (
 
 type localBuildExecutor struct {
 	contentAddressableStorage blobstore.BlobAccess
+	inputFileExposer          InputFileExposer
 }
 
-func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess) BuildExecutor {
+func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess, inputFileExposer InputFileExposer) BuildExecutor {
 	return &localBuildExecutor{
 		contentAddressableStorage: contentAddressableStorage,
+		inputFileExposer:          inputFileExposer,
 	}
-}
-
-func (be *localBuildExecutor) createInputFile(instance string, digest *remoteexecution.Digest, base string, isExecutable bool) error {
-	var mode os.FileMode = 0444
-	if isExecutable {
-		mode = 0555
-	}
-	f, err := os.OpenFile(base, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
-	r, err := be.contentAddressableStorage.Get(instance, digest)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(f, r)
-	return err
 }
 
 func (be *localBuildExecutor) createInputDirectory(instance string, digest *remoteexecution.Digest, base string) error {
@@ -69,7 +51,7 @@ func (be *localBuildExecutor) createInputDirectory(instance string, digest *remo
 
 	for _, file := range directory.Files {
 		// TODO(edsch): Path validation?
-		if err := be.createInputFile(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
+		if err := be.inputFileExposer.Expose(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
 			return err
 		}
 	}

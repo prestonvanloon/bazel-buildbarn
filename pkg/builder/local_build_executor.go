@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	pathTempRoot  = "/tmp"
 	pathBuildRoot = "/build"
 	pathStdout    = "/stdout"
 	pathStderr    = "/stderr"
@@ -98,8 +99,8 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 	}
 
 	// Provide a clean temp directory.
-	os.RemoveAll("/tmp")
-	return os.Mkdir("/tmp", 0777)
+	os.RemoveAll(pathTempRoot)
+	return os.Mkdir(pathTempRoot, 0777)
 }
 
 func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest) error {
@@ -118,6 +119,7 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
 	cmd := exec.Command(command.Arguments[0], command.Arguments[1:]...)
 	cmd.Dir = pathBuildRoot
+	cmd.Env = []string{"HOME=" + pathTempRoot}
 	for _, environmentVariable := range command.EnvironmentVariables {
 		cmd.Env = append(cmd.Env, environmentVariable.Name+"="+environmentVariable.Value)
 	}

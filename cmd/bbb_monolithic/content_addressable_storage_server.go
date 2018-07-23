@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"log"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
@@ -35,8 +34,7 @@ func (s *contentAddressableStorageServer) FindMissingBlobs(ctx context.Context, 
 }
 
 func (s *contentAddressableStorageServer) BatchUpdateBlobs(ctx context.Context, in *remoteexecution.BatchUpdateBlobsRequest) (*remoteexecution.BatchUpdateBlobsResponse, error) {
-	log.Print("Attempted to call ContentAddressableStorage.BatchUpdateBlobs")
-	return nil, errors.New("Fail!")
+	return nil, status.Error(codes.Unimplemented, "This service does not support batched uploading of blobs")
 }
 
 func (s *contentAddressableStorageServer) GetTree(ctx context.Context, in *remoteexecution.GetTreeRequest) (*remoteexecution.GetTreeResponse, error) {

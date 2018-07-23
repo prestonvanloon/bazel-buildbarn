@@ -26,9 +26,27 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_binutils",
+    sha256 = "b86a5bf3ff150ef74c1a452564c6480a8f81f3f27376b121a76783dc5e59d352",
+    url = "http://ftp.nl.debian.org/debian/pool/main/b/binutils/binutils_2.28-5_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_coreutils",
     sha256 = "ef6c0ab3d52a7d3e85ba4a9c04a1931264d34bab842da6e1428c8c4bda28a800",
     url = "http://ftp.nl.debian.org/debian/pool/main/c/coreutils/coreutils_8.26-3_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_cpp",
+    sha256 = "61e8465367af69a52fe7f4300e9ea2e0b12a918a78beac41950b8a43be26aed9",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-defaults/cpp_6.3.0-4_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_cpp_6",
+    sha256 = "611bb72b6a432b357881a8b856fe0d9c7380b8a211cebefb489485b683949d6f",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/cpp-6_6.3.0-18+deb9u1_amd64.deb",
 )
 
 http_file(
@@ -41,6 +59,18 @@ http_file(
     name = "debian_deb_findutils",
     sha256 = "b6e241e619e985455e6a7638807a28929b15efecf0158b207ff3ae0fc964f75a",
     url = "http://ftp.nl.debian.org/debian/pool/main/f/findutils/findutils_4.6.0+git+20161106-2_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_gcc",
+    sha256 = "64902f7486389eaf20a9ff8efaed81cb41948b43453fb6be4472418bca0a231b",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-defaults/gcc_6.3.0-4_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_gcc_6",
+    sha256 = "c5a6be3bc9b061ea35f33444ae063581dea2dae7eb34f960b2ae371f03b5dec7",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/gcc-6_6.3.0-18+deb9u1_amd64.deb",
 )
 
 http_file(
@@ -68,9 +98,45 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_libc6_dev",
+    sha256 = "8bdebd7bc1fc4138e0181821a1fe1fb576cbae241f03a31ab3c6cfc3a9875dc6",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/glibc/libc6-dev_2.24-11+deb9u3_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_libgcc1",
     sha256 = "423a6541ee7ade69967c99492e267e724fd4675de53310861af5d1a1d249c4bf",
     url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/libgcc1_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libgcc_6_dev",
+    sha256 = "fbaa19b872bee99a443319da415ae2de346d72d15b12dc3d0a4c3607b154b884",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/libgcc-6-dev_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libgmp10",
+    sha256 = "4a5ef027aae7d20060899e396113c55906d883d39675d9e9990bcace1acba0d1",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gmp/libgmp10_6.1.2+dfsg-1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libisl15",
+    sha256 = "7f0a81e458df5e9648252bf3a76ffd57f366a0ddcab5290a9c3bb5bc0c79e513",
+    url = "http://ftp.nl.debian.org/debian/pool/main/i/isl/libisl15_0.18-1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libmpc3",
+    sha256 = "99b2bd2c8618494116bef1d13d0525fe2885be46e2441a4697afd7ec93efb431",
+    url = "http://ftp.nl.debian.org/debian/pool/main/m/mpclib3/libmpc3_1.0.3-1+b2_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libmpfr4",
+    sha256 = "95730a4709b898ffaf677f9b3ab6f6ebef5a96866589a8cf5f775448b3413a98",
+    url = "http://ftp.nl.debian.org/debian/pool/main/m/mpfr4/libmpfr4_3.1.5-1_amd64.deb",
 )
 
 http_file(
@@ -98,9 +164,27 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_libstdcxx6",
+    sha256 = "d05373fbbb0d2c538fa176dfe71d1fa7983c58d35a7a456263ca87e8e0d45030",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/libstdc++6_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_libstdcxx_6_dev",
+    sha256 = "b13ce454a53108895efc7db8e1d99bd56d5e884ccbe174951586f12849fe82af",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/libstdc++-6-dev_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_libtinfo5",
     sha256 = "1d249a3193568b5ef785ad8993b9ba6d6fdca0eb359204c2355532b82d25e9f5",
     url = "http://ftp.nl.debian.org/debian/pool/main/n/ncurses/libtinfo5_6.0+20161126-1+deb9u2_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_linux_libc_dev",
+    sha256 = "2ecdb478eedc1206c2127d9ad646642347bd1f3947fdd64f1ae5c3cf45374a57",
+    url = "http://ftp.nl.debian.org/debian/pool/main/l/linux/linux-libc-dev_4.9.110-1_amd64.deb",
 )
 
 http_file(

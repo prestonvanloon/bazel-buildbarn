@@ -5,5 +5,5 @@ import (
 )
 
 type InputFileExposer interface {
-	Expose(instance string, digest *remoteexecution.Digest, base string, isExecutable bool) error
+	Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error
 }

@@ -19,12 +19,12 @@ func NewUncachedInputFileExposer(contentAddressableStorage blobstore.BlobAccess)
 	}
 }
 
-func (fe *uncachedInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, base string, isExecutable bool) error {
+func (fe *uncachedInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
 	var mode os.FileMode = 0444
 	if isExecutable {
 		mode = 0555
 	}
-	f, err := os.OpenFile(base, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	f, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return err
 	}

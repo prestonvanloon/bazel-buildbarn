@@ -195,10 +195,10 @@ func (be *localBuildExecutor) uploadFile(instance string, path string, casThresh
 	}
 }
 
-func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, permitNonexistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
+func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, permitNonExistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if permitNonExistent && os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -247,7 +247,7 @@ func (be *localBuildExecutor) uploadTree(instance string, path string) (*remotee
 	if root == nil || err != nil {
 		return nil, err
 	}
-	tree := remoteexecution.Tree{
+	tree := &remoteexecution.Tree{
 		Root: root,
 	}
 	for _, child := range children {
@@ -255,11 +255,11 @@ func (be *localBuildExecutor) uploadTree(instance string, path string) (*remotee
 	}
 
 	// Upload the tree.
-	digest, err := util.DigestFromMessage(root)
+	digest, err := util.DigestFromMessage(tree)
 	if err != nil {
 		return nil, err
 	}
-	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, instance, digest, root); err != nil {
+	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, instance, digest, tree); err != nil {
 		return nil, err
 	}
 	return digest, nil

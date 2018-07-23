@@ -88,6 +88,14 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 		return err
 	}
 
+	// Ensure that directories where output files are stored are present.
+	for _, outputFile := range request.Action.OutputFiles {
+		// TODO(edsch): Path validation?
+		if err := os.MkdirAll(path.Dir(path.Join(pathBuildRoot, outputFile)), 0777); err != nil {
+			return err
+		}
+	}
+
 	// Provide a clean temp directory.
 	os.RemoveAll("/tmp")
 	return os.Mkdir("/tmp", 0777)

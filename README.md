@@ -3,7 +3,7 @@
 Bazel Buildbarn is an implementation of a Bazel buildfarm written in the
 Go programming language. The intent is that this implementation is going
 to be run in Docker containers on Kubernetes. In such environments it is
-generally impossible to use [sandboxfs]{https://github.com/bazelbuild/sandboxfs/),
+generally impossible to use [sandboxfs](https://github.com/bazelbuild/sandboxfs/),
 meaning we'll need to use basic UNIX credentials management (privilege
 separation) to provide a rudimentary form of sandboxing.
 

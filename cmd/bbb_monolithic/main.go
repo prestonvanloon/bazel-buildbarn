@@ -4,6 +4,8 @@ import (
 	"flag"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"syscall"
 
@@ -34,6 +36,11 @@ func main() {
 
 	// Respect file permissions that we pass to os.OpenFile(), os.Mkdir(), etc.
 	syscall.Umask(0)
+
+	// Web server for metrics and profiling.
+	go func() {
+		log.Println(http.ListenAndServe(":80", nil))
+	}()
 
 	// Storage of content and actions.
 	var contentAddressableStorage blobstore.BlobAccess

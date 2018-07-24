@@ -223,7 +223,11 @@ http_file(
     url = "http://ftp.nl.debian.org/debian/pool/main/z/zlib/zlib1g_1.2.8.dfsg-5_amd64.deb",
 )
 
-load("@io_bazel_rules_docker//container:container.bzl", "container_pull", container_repositories = "repositories")
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_pull",
+    container_repositories = "repositories",
+)
 
 container_repositories()
 
@@ -245,7 +249,7 @@ go_repository(
 
 go_repository(
     name = "com_github_satori_go_uuid",
-    commit = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e",
+    commit = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3",
     importpath = "github.com/satori/go.uuid",
 )
 
@@ -271,4 +275,46 @@ go_repository(
     name = "org_golang_x_text",
     commit = "f21a4dfb5e38f5895301dc265a8def02365cc3d0",
     importpath = "golang.org/x/text",
+)
+
+go_repository(
+    name = "com_github_dustin_go_humanize",
+    commit = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e",
+    importpath = "github.com/dustin/go-humanize",
+)
+
+go_repository(
+    name = "com_github_go_ini_ini",
+    commit = "358ee7663966325963d4e8b2e1fbd570c5195153",
+    importpath = "github.com/go-ini/ini",
+)
+
+go_repository(
+    name = "com_github_minio_minio_go",
+    commit = "70799fe8dae6ecfb6c7d7e9e048fce27f23a1992",
+    importpath = "github.com/minio/minio-go",
+)
+
+go_repository(
+    name = "com_github_mitchellh_go_homedir",
+    commit = "3864e76763d94a6df2f9960b16a20a33da9f9a66",
+    importpath = "github.com/mitchellh/go-homedir",
+)
+
+go_repository(
+    name = "com_github_sirupsen_logrus",
+    commit = "3e01752db0189b9157070a0e1668a620f9a85da2",
+    importpath = "github.com/sirupsen/logrus",
+)
+
+go_repository(
+    name = "org_golang_x_crypto",
+    commit = "c126467f60eb25f8f27e5a981f32a87e3965053f",
+    importpath = "golang.org/x/crypto",
+)
+
+go_repository(
+    name = "org_golang_x_sys",
+    commit = "ac767d655b305d4e9612f5f6e33120b9176c4ad4",
+    importpath = "golang.org/x/sys",
 )

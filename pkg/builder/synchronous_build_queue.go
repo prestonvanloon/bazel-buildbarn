@@ -109,7 +109,7 @@ func (bq *SynchronousBuildQueue) Execute(ctx context.Context, request *remoteexe
 		}
 
 		job = &synchronousBuildJob{
-			name:             uuid.Must(uuid.NewV4()).String(),
+			name:             uuid.NewV4().String(),
 			actionDigest:     actionDigest,
 			deduplicationKey: deduplicationKey,
 			executeRequest:   *request,

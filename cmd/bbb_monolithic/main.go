@@ -49,6 +49,7 @@ func main() {
 		contentAddressableStorage = blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance)
 		actionCache = blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
 	} else {
+		// Create an S3 client. Set the uploader concurrency to 1 to drastically reduce memory usage.
 		session := session.New(&aws.Config{
 			Credentials:      credentials.NewStaticCredentials(*s3AccessKeyId, *s3SecretAccessKey, ""),
 			Endpoint:         s3Endpoint,
@@ -58,6 +59,8 @@ func main() {
 		})
 		s3 := s3.New(session)
 		uploader := s3manager.NewUploader(session)
+		uploader.Concurrency = 1
+
 		contentAddressableStorage = blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance)
 		actionCache = blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance)
 	}

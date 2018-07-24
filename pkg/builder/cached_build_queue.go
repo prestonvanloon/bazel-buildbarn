@@ -25,6 +25,7 @@ func NewCachedBuildQueue(actionCache blobstore.BlobAccess, fallback BuildQueue) 
 func (bq *cachedBuildQueue) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
 	if !request.SkipCacheLookup {
 		// TODO(edsch): Inspect the action cache!
+		// TODO(edsch): Set CachedResult = true for those entries.
 	}
 	return bq.fallback.Execute(ctx, request)
 }

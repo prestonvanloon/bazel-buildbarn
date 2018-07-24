@@ -49,7 +49,9 @@ func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest,
 	if err != nil {
 		return err
 	}
+	ba.lock.Lock()
 	ba.blobs[key] = data
+	ba.lock.Unlock()
 	return nil
 }
 

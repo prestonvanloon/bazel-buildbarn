@@ -24,7 +24,7 @@ func (be *cachingBuildExecutor) Execute(request *remoteexecution.ExecuteRequest)
 	if err != nil {
 		return nil, err
 	}
-	if !request.Action.DoNotCache {
+	if !request.Action.DoNotCache && response.Result.ExitCode == 0 {
 		digest, err := util.DigestFromMessage(request.Action)
 		if err != nil {
 			return nil, err

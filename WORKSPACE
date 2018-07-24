@@ -74,6 +74,18 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_gxx",
+    sha256 = "3b61f34c9fa121c01287251acaed3f5754ddb83788bfc0bd899ee859e9604861",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-defaults/g++_6.3.0-4_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_gxx_6",
+    sha256 = "9fd0d72788ffff4a71ad4236731626c9074afc4a10990b58fe970072321bc26d",
+    url = "http://ftp.nl.debian.org/debian/pool/main/g/gcc-6/g++-6_6.3.0-18+deb9u1_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_grep",
     sha256 = "0704a54bfa9fb8e1045704cd7ce6f2f652a2cef9857fdd39cef97fd97c6d4d01",
     url = "http://ftp.nl.debian.org/debian/pool/main/g/grep/grep_2.27-2_amd64.deb",

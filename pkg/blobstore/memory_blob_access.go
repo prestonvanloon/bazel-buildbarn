@@ -26,18 +26,18 @@ func NewMemoryBlobAccess(blobKeyer util.DigestKeyer) BlobAccess {
 	}
 }
 
-func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.ReadCloser, error) {
+func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest) io.ReadCloser {
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
-		return nil, err
+		return &errorReader{err: err}
 	}
 	ba.lock.RLock()
 	blob, ok := ba.blobs[key]
 	ba.lock.RUnlock()
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "Blob %s not found", key)
+		return &errorReader{err: status.Errorf(codes.NotFound, "Blob %s not found", key)}
 	}
-	return ioutil.NopCloser(bytes.NewReader(blob)), nil
+	return ioutil.NopCloser(bytes.NewReader(blob))
 }
 
 func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {

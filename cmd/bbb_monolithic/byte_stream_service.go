@@ -93,10 +93,7 @@ func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteS
 	if digest == nil {
 		return errors.New("Unsupported resource naming scheme")
 	}
-	r, err := s.blobAccess.Get(instance, digest)
-	if err != nil {
-		return err
-	}
+	r := s.blobAccess.Get(instance, digest)
 	defer r.Close()
 
 	for {

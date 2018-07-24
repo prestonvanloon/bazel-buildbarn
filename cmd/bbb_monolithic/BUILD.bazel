@@ -15,6 +15,7 @@ go_library(
         "//pkg/blobstore:go_default_library",
         "//pkg/builder:go_default_library",
         "//pkg/util:go_default_library",
+        "@com_github_minio_minio_go//:go_default_library",
         "@go_googleapis//google/bytestream:bytestream_go_proto",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
         "@go_googleapis//google/watcher/v1:watcher_go_proto",

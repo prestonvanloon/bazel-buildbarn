@@ -31,12 +31,13 @@ func (fe *blobAccessInputFileExposer) Expose(instance string, digest *remoteexec
 	defer w.Close()
 
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
-	r, err := fe.contentAddressableStorage.Get(instance, digest)
-	if err != nil {
-		return err
-	}
+	r := fe.contentAddressableStorage.Get(instance, digest)
+	_, err = io.Copy(w, r)
 	defer r.Close()
 
-	_, err = io.Copy(w, r)
+	// Ensure no traces are left behind upon failure.
+	if err != nil {
+		os.Remove(outputPath)
+	}
 	return err
 }

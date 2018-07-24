@@ -11,19 +11,15 @@ import (
 )
 
 type BlobAccess interface {
-	Get(instance string, digest *remoteexecution.Digest) (io.ReadCloser, error)
+	Get(instance string, digest *remoteexecution.Digest) io.ReadCloser
 	Put(instance string, digest *remoteexecution.Digest, r io.Reader) error
 	FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
 }
 
 func GetMessageFromBlobAccess(blobAccess BlobAccess, instance string, digest *remoteexecution.Digest, out proto.Message) error {
-	r, err := blobAccess.Get(instance, digest)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
+	r := blobAccess.Get(instance, digest)
 	data, err := ioutil.ReadAll(r)
+	r.Close()
 	if err != nil {
 		return err
 	}
@@ -36,4 +32,16 @@ func PutMessageToBlobAccess(blobAccess BlobAccess, instance string, digest *remo
 		return err
 	}
 	return blobAccess.Put(instance, digest, bytes.NewBuffer(data))
+}
+
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read(_ []byte) (int, error) {
+	return 0, r.err
+}
+
+func (r *errorReader) Close() error {
+	return r.err
 }

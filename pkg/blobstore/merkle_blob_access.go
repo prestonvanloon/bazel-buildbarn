@@ -36,7 +36,7 @@ func NewMerkleBlobAccess(blobAccess BlobAccess) BlobAccess {
 	}
 }
 
-func (ba *merkleBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.Reader, error) {
+func (ba *merkleBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.ReadCloser, error) {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return nil, err
@@ -96,4 +96,8 @@ func (r *checksumValidatingReader) Read(p []byte) (int, error) {
 		// TODO(edsch): Validate checksum.
 	}
 	return n, err
+}
+
+func (r *checksumValidatingReader) Close() error {
+	return r.reader.(io.ReadCloser).Close()
 }

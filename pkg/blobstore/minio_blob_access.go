@@ -23,12 +23,11 @@ func NewMinioBlobAccess(client *minio.Client, bucketName string, blobKeyer util.
 	}
 }
 
-func (ba *minioBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.Reader, error) {
+func (ba *minioBlobAccess) Get(instance string, digest *remoteexecution.Digest) (io.ReadCloser, error) {
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(edsch): This should use ReadCloser!
 	return ba.client.GetObject(ba.bucketName, key, minio.GetObjectOptions{})
 }
 

@@ -97,6 +97,7 @@ func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteS
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	for {
 		var readBuf [readChunkSize]byte

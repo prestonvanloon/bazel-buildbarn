@@ -11,8 +11,7 @@ import (
 )
 
 type BlobAccess interface {
-	// TODO(edsch): Should this be ReadCloser?
-	Get(instance string, digest *remoteexecution.Digest) (io.Reader, error)
+	Get(instance string, digest *remoteexecution.Digest) (io.ReadCloser, error)
 	Put(instance string, digest *remoteexecution.Digest, r io.Reader) error
 	FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
 }
@@ -22,6 +21,8 @@ func GetMessageFromBlobAccess(blobAccess BlobAccess, instance string, digest *re
 	if err != nil {
 		return err
 	}
+	defer r.Close()
+
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err

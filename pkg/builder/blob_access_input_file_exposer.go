@@ -24,17 +24,19 @@ func (fe *blobAccessInputFileExposer) Expose(instance string, digest *remoteexec
 	if isExecutable {
 		mode = 0555
 	}
-	f, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	w, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer w.Close()
 
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	r, err := fe.contentAddressableStorage.Get(instance, digest)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, r)
+	defer r.Close()
+
+	_, err = io.Copy(w, r)
 	return err
 }

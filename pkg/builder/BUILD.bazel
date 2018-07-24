@@ -8,7 +8,7 @@ go_library(
         "build_queue.go",
         "cached_build_queue.go",
         "caching_build_executor.go",
-        "caching_input_file_exposer.go",
+        "hardlinking_input_file_exposer.go",
         "input_file_exposer.go",
         "local_build_executor.go",
         "synchronous_build_queue.go",

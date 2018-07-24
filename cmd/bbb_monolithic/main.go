@@ -10,7 +10,11 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
-	"github.com/minio/minio-go"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
@@ -20,10 +24,11 @@ import (
 
 func main() {
 	var (
-		minioEndpoint        = flag.String("minio-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
-		minioAccessKeyId     = flag.String("minio-access-key-id", "", "Access key for the object storage")
-		minioSecretAccessKey = flag.String("minio-secret-access-key", "", "Secret key for the object storage")
-		minioSsl             = flag.Bool("minio-ssl", false, "Whether to use HTTPS for the object storage")
+		s3Endpoint        = flag.String("s3-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
+		s3AccessKeyId     = flag.String("s3-access-key-id", "", "Access key for the object storage")
+		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
+		s3Region          = flag.String("s3-region", "", "Region of the object storage")
+		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
 	)
 	flag.Parse()
 
@@ -33,16 +38,21 @@ func main() {
 	// Storage of content and actions.
 	var contentAddressableStorage blobstore.BlobAccess
 	var actionCache blobstore.BlobAccess
-	if *minioEndpoint == "" {
+	if *s3Endpoint == "" {
 		contentAddressableStorage = blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance)
 		actionCache = blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
 	} else {
-		minioClient, err := minio.New(*minioEndpoint, *minioAccessKeyId, *minioSecretAccessKey, *minioSsl)
-		if err != nil {
-			log.Fatal("Failed to create Minio client: ", err)
-		}
-		contentAddressableStorage = blobstore.NewMinioBlobAccess(minioClient, "content-addressable-storage", util.KeyDigestWithoutInstance)
-		actionCache = blobstore.NewMinioBlobAccess(minioClient, "action-cache", util.KeyDigestWithInstance)
+		session := session.New(&aws.Config{
+			Credentials:      credentials.NewStaticCredentials(*s3AccessKeyId, *s3SecretAccessKey, ""),
+			Endpoint:         s3Endpoint,
+			Region:           s3Region,
+			DisableSSL:       s3DisableSsl,
+			S3ForcePathStyle: aws.Bool(true),
+		})
+		s3 := s3.New(session)
+		uploader := s3manager.NewUploader(session)
+		contentAddressableStorage = blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance)
+		actionCache = blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance)
 	}
 	contentAddressableStorage = blobstore.NewMerkleBlobAccess(contentAddressableStorage)
 

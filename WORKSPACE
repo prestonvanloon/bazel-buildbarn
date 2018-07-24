@@ -242,9 +242,27 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 gazelle_dependencies()
 
 go_repository(
+    name = "com_github_aws_aws_sdk_go",
+    commit = "bc3f534c19ffdf835e524e11f0f825b3eaf541c3",
+    importpath = "github.com/aws/aws-sdk-go",
+)
+
+go_repository(
+    name = "com_github_go_ini_ini",
+    commit = "358ee7663966325963d4e8b2e1fbd570c5195153",
+    importpath = "github.com/go-ini/ini",
+)
+
+go_repository(
     name = "com_github_golang_protobuf",
     commit = "b4deda0973fb4c70b50d226b1af49f3da59f5265",
     importpath = "github.com/golang/protobuf",
+)
+
+go_repository(
+    name = "com_github_jmespath_go_jmespath",
+    commit = "0b12d6b5",
+    importpath = "github.com/jmespath/go-jmespath",
 )
 
 go_repository(
@@ -275,46 +293,4 @@ go_repository(
     name = "org_golang_x_text",
     commit = "f21a4dfb5e38f5895301dc265a8def02365cc3d0",
     importpath = "golang.org/x/text",
-)
-
-go_repository(
-    name = "com_github_dustin_go_humanize",
-    commit = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e",
-    importpath = "github.com/dustin/go-humanize",
-)
-
-go_repository(
-    name = "com_github_go_ini_ini",
-    commit = "358ee7663966325963d4e8b2e1fbd570c5195153",
-    importpath = "github.com/go-ini/ini",
-)
-
-go_repository(
-    name = "com_github_minio_minio_go",
-    commit = "70799fe8dae6ecfb6c7d7e9e048fce27f23a1992",
-    importpath = "github.com/minio/minio-go",
-)
-
-go_repository(
-    name = "com_github_mitchellh_go_homedir",
-    commit = "3864e76763d94a6df2f9960b16a20a33da9f9a66",
-    importpath = "github.com/mitchellh/go-homedir",
-)
-
-go_repository(
-    name = "com_github_sirupsen_logrus",
-    commit = "3e01752db0189b9157070a0e1668a620f9a85da2",
-    importpath = "github.com/sirupsen/logrus",
-)
-
-go_repository(
-    name = "org_golang_x_crypto",
-    commit = "c126467f60eb25f8f27e5a981f32a87e3965053f",
-    importpath = "golang.org/x/crypto",
-)
-
-go_repository(
-    name = "org_golang_x_sys",
-    commit = "ac767d655b305d4e9612f5f6e33120b9176c4ad4",
-    importpath = "golang.org/x/sys",
 )

@@ -3,6 +3,7 @@ package blobstore
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"sync"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
@@ -39,15 +40,17 @@ func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 	return bytes.NewReader(blob), nil
 }
 
-func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error) {
+func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &memoryBlobWriter{
-		key:        key,
-		blobAccess: ba,
-	}, nil
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	ba.blobs[key] = data
+	return nil
 }
 
 func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
@@ -64,25 +67,4 @@ func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecut
 		}
 	}
 	return missing, nil
-}
-
-type memoryBlobWriter struct {
-	key        string
-	data       []byte
-	blobAccess *memoryBlobAccess
-}
-
-func (bw *memoryBlobWriter) Write(p []byte) (n int, err error) {
-	bw.data = append(bw.data, p...)
-	return len(p), nil
-}
-
-func (bw *memoryBlobWriter) Close() error {
-	bw.blobAccess.lock.Lock()
-	bw.blobAccess.blobs[bw.key] = bw.data
-	bw.blobAccess.lock.Unlock()
-	return nil
-}
-
-func (bw *memoryBlobWriter) Abandon() {
 }

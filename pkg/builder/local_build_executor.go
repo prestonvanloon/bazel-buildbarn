@@ -155,15 +155,9 @@ func (be *localBuildExecutor) uploadFile(instance string, path string) (*remotee
 	}
 
 	// Store in content addressable storage.
-	w, err := be.contentAddressableStorage.Put(instance, digest)
-	if err != nil {
+	if err := be.contentAddressableStorage.Put(instance, digest, file); err != nil {
 		return nil, false, err
 	}
-	if _, err := io.Copy(w, file); err != nil {
-		w.Abandon()
-		return nil, false, err
-	}
-	w.Close()
 	return digest, (info.Mode() & 0111) != 0, nil
 }
 

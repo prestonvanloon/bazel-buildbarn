@@ -115,8 +115,38 @@ func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteS
 	}
 }
 
+type byteStreamWriteServerReader struct {
+	stream      bytestream.ByteStream_WriteServer
+	writeOffset int64
+	chunk       []byte
+}
+
+func (r *byteStreamWriteServerReader) Read(p []byte) (int, error) {
+	n := 0
+	for {
+		// Copy data from previously read partial chunk.
+		c := copy(p, r.chunk)
+		p = p[c:]
+		r.chunk = r.chunk[c:]
+		n += c
+		if len(p) == 0 {
+			return n, nil
+		}
+
+		// Read next chunk.
+		request, err := r.stream.Recv()
+		if err != nil {
+			return n, err
+		}
+		if request.WriteOffset != r.writeOffset {
+			return n, fmt.Errorf("Attempted to write at offset %d, while %d was expected", request.WriteOffset, r.writeOffset)
+		}
+		r.writeOffset += int64(len(request.Data))
+		r.chunk = request.Data
+	}
+}
+
 func (s *byteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error {
-	// Store blob through blob access.
 	request, err := stream.Recv()
 	if err != nil {
 		return err
@@ -125,38 +155,9 @@ func (s *byteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error
 	if digest == nil {
 		return errors.New("Unsupported resource naming scheme")
 	}
-	w, err := s.blobAccess.Put(instance, digest)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-
-	var writeOffset int64
-	for {
-		// Write chunk of data.
-		if request.WriteOffset != writeOffset {
-			w.Abandon()
-			return fmt.Errorf("Attempted to write at offset %d, while %d was expected", request.WriteOffset, writeOffset)
-		}
-		n, err := w.Write(request.Data)
-		writeOffset += int64(n)
-		if err != nil {
-			w.Abandon()
-			log.Print(err)
-			return err
-		}
-
-		// Obtain next chunk.
-		request, err = stream.Recv()
-		if err == io.EOF {
-			return w.Close()
-		}
-		if err != nil {
-			w.Abandon()
-			log.Print(err)
-			return err
-		}
-	}
+	return s.blobAccess.Put(instance, digest, &byteStreamWriteServerReader{
+		stream: stream,
+	})
 }
 
 func (s *byteStreamServer) QueryWriteStatus(ctx context.Context, in *bytestream.QueryWriteStatusRequest) (*bytestream.QueryWriteStatusResponse, error) {

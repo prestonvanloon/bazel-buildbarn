@@ -1,6 +1,7 @@
 package blobstore
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 
@@ -9,15 +10,10 @@ import (
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
-type WriteCloser interface {
-	io.WriteCloser
-	Abandon()
-}
-
 type BlobAccess interface {
 	// TODO(edsch): Should this be ReadCloser?
 	Get(instance string, digest *remoteexecution.Digest) (io.Reader, error)
-	Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error)
+	Put(instance string, digest *remoteexecution.Digest, r io.Reader) error
 	FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error)
 }
 
@@ -38,13 +34,5 @@ func PutMessageToBlobAccess(blobAccess BlobAccess, instance string, digest *remo
 	if err != nil {
 		return err
 	}
-	w, err := blobAccess.Put(instance, digest)
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write(data); err != nil {
-		w.Abandon()
-		return err
-	}
-	return w.Close()
+	return blobAccess.Put(instance, digest, bytes.NewBuffer(data))
 }

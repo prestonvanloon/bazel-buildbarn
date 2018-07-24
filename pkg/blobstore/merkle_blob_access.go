@@ -45,28 +45,23 @@ func (ba *merkleBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 	if err != nil {
 		return nil, err
 	}
-	mr := merkleReader{
+	return &checksumValidatingReader{
 		reader:   r,
 		checksum: checksum,
 		sizeLeft: size,
-	}
-	return &mr, nil
+	}, nil
 }
 
-func (ba *merkleBlobAccess) Put(instance string, digest *remoteexecution.Digest) (WriteCloser, error) {
+func (ba *merkleBlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	w, err := ba.blobAccess.Put(instance, digest)
-	if err != nil {
-		return nil, err
-	}
-	return &merkleWriter{
-		writer:   w,
+	return ba.blobAccess.Put(instance, digest, &checksumValidatingReader{
+		reader:   r,
 		checksum: checksum,
 		sizeLeft: size,
-	}, nil
+	})
 }
 
 func (ba *merkleBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
@@ -79,13 +74,13 @@ func (ba *merkleBlobAccess) FindMissing(instance string, digests []*remoteexecut
 	return ba.blobAccess.FindMissing(instance, digests)
 }
 
-type merkleReader struct {
+type checksumValidatingReader struct {
 	reader   io.Reader
 	checksum [sha256.Size]byte
 	sizeLeft uint64
 }
 
-func (r *merkleReader) Read(p []byte) (int, error) {
+func (r *checksumValidatingReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	nLen := uint64(n)
 	if nLen > r.sizeLeft {
@@ -101,33 +96,4 @@ func (r *merkleReader) Read(p []byte) (int, error) {
 		// TODO(edsch): Validate checksum.
 	}
 	return n, err
-}
-
-type merkleWriter struct {
-	writer   WriteCloser
-	checksum [sha256.Size]byte
-	sizeLeft uint64
-}
-
-func (w *merkleWriter) Write(p []byte) (int, error) {
-	// TODO(edsch): Update checksum.
-	if pLen := uint64(len(p)); pLen > w.sizeLeft {
-		return 0, fmt.Errorf("Attempted to write %d bytes too many", pLen-w.sizeLeft)
-	}
-	n, err := w.writer.Write(p)
-	w.sizeLeft -= uint64(n)
-	return n, err
-}
-
-func (w *merkleWriter) Close() error {
-	// TODO(edsch): Validate checksum.
-	if w.sizeLeft != 0 {
-		w.writer.Abandon()
-		return fmt.Errorf("Blob is %d bytes shorter than expected", w.sizeLeft)
-	}
-	return w.writer.Close()
-}
-
-func (w *merkleWriter) Abandon() {
-	w.writer.Abandon()
 }

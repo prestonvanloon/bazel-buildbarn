@@ -140,6 +140,12 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_liblzma5",
+    sha256 = "0dd0d94608fb054c7dca567692eab847d7f1dfd521ebe9c12bf7f6f64c95b006",
+    url = "http://ftp.nl.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.2.2-1.2+b1_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_libmpc3",
     sha256 = "99b2bd2c8618494116bef1d13d0525fe2885be46e2441a4697afd7ec93efb431",
     url = "http://ftp.nl.debian.org/debian/pool/main/m/mpclib3/libmpc3_1.0.3-1+b2_amd64.deb",
@@ -215,6 +221,12 @@ http_file(
     name = "debian_deb_sed",
     sha256 = "0b241948d78b5b61755f29515bd7c3d60f8119f54176d9a7c454a3dd7b7a7b09",
     url = "http://ftp.nl.debian.org/debian/pool/main/s/sed/sed_4.4-1_amd64.deb",
+)
+
+http_file(
+    name = "debian_deb_xz_utils",
+    sha256 = "6d07d82ab8d58004f3bbe2ca82d1e812c94f84c297dce7d9a2d3bb7552cf0b57",
+    url = "http://ftp.nl.debian.org/debian/pool/main/x/xz-utils/xz-utils_5.2.2-1.2+b1_amd64.deb",
 )
 
 http_file(

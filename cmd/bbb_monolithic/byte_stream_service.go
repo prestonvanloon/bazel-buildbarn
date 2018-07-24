@@ -119,16 +119,16 @@ func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteS
 type byteStreamWriteServerReader struct {
 	stream      bytestream.ByteStream_WriteServer
 	writeOffset int64
-	chunk       []byte
+	data        []byte
 }
 
 func (r *byteStreamWriteServerReader) Read(p []byte) (int, error) {
 	n := 0
 	for {
 		// Copy data from previously read partial chunk.
-		c := copy(p, r.chunk)
+		c := copy(p, r.data)
 		p = p[c:]
-		r.chunk = r.chunk[c:]
+		r.data = r.data[c:]
 		n += c
 		if len(p) == 0 {
 			return n, nil
@@ -143,7 +143,7 @@ func (r *byteStreamWriteServerReader) Read(p []byte) (int, error) {
 			return n, fmt.Errorf("Attempted to write at offset %d, while %d was expected", request.WriteOffset, r.writeOffset)
 		}
 		r.writeOffset += int64(len(request.Data))
-		r.chunk = request.Data
+		r.data = request.Data
 	}
 }
 
@@ -156,9 +156,12 @@ func (s *byteStreamServer) Write(stream bytestream.ByteStream_WriteServer) error
 	if digest == nil {
 		return errors.New("Unsupported resource naming scheme")
 	}
-	return s.blobAccess.Put(instance, digest, &byteStreamWriteServerReader{
-		stream: stream,
+	err = s.blobAccess.Put(instance, digest, &byteStreamWriteServerReader{
+		stream:      stream,
+		writeOffset: int64(len(request.Data)),
+		data:        request.Data,
 	})
+	return err
 }
 
 func (s *byteStreamServer) QueryWriteStatus(ctx context.Context, in *bytestream.QueryWriteStatusRequest) (*bytestream.QueryWriteStatusResponse, error) {

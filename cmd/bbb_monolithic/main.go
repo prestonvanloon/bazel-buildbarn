@@ -50,12 +50,8 @@ func main() {
 	var contentAddressableStorageBlobAccess blobstore.BlobAccess
 	var actionCacheBlobAccess blobstore.BlobAccess
 	if *s3Endpoint == "" {
-		contentAddressableStorageBlobAccess = blobstore.NewMetricsBlobAccess(
-			blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance),
-			"cas_s3")
-		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(
-			blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance),
-			"ac_s3")
+		contentAddressableStorageBlobAccess = blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance)
+		actionCacheBlobAccess = blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
 	} else {
 		// Create an S3 client. Set the uploader concurrency to 1 to drastically reduce memory usage.
 		session := session.New(&aws.Config{
@@ -72,7 +68,10 @@ func main() {
 		contentAddressableStorageBlobAccess = blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance)
 		actionCacheBlobAccess = blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance)
 	}
-	contentAddressableStorageBlobAccess = blobstore.NewMerkleBlobAccess(contentAddressableStorageBlobAccess)
+	contentAddressableStorageBlobAccess = blobstore.NewMetricsBlobAccess(
+		blobstore.NewMerkleBlobAccess(contentAddressableStorageBlobAccess),
+		"cas_storage")
+	actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_storage")
 
 	// On-disk caching of content for efficient linking into build environments.
 	if err := os.Mkdir("/cache", 0); err != nil {
@@ -81,10 +80,12 @@ func main() {
 
 	buildExecutor := builder.NewCachingBuildExecutor(
 		builder.NewLocalBuildExecutor(
-			cas.NewHardlinkingContentAddressableStorage(
-				cas.NewBlobAccessContentAddressableStorage(
-					blobstore.NewMetricsBlobAccess(contentAddressableStorageBlobAccess, "cas_build_executor")),
-				util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30)),
+			cas.NewDirectoryCachingContentAddressableStorage(
+				cas.NewHardlinkingContentAddressableStorage(
+					cas.NewBlobAccessContentAddressableStorage(
+						blobstore.NewMetricsBlobAccess(contentAddressableStorageBlobAccess, "cas_build_executor")),
+					util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30),
+				util.KeyDigestWithoutInstance, 1000)),
 		ac.NewBlobAccessActionCache(
 			blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_build_executor")))
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)

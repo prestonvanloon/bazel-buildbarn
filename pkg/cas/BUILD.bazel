@@ -6,6 +6,7 @@ go_library(
         "blob_access_content_addressable_storage.go",
         "content_addressable_storage.go",
         "content_addressable_storage_server.go",
+        "directory_caching_content_addressable_storage.go",
         "hardlinking_content_addressable_storage.go",
     ],
     importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/cas",

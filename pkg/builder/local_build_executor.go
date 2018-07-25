@@ -284,7 +284,7 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 		})
 	}
 
-	// TODO(edsch): Upload output directories.
+	// Upload output directories.
 	for _, outputDirectory := range request.Action.OutputDirectories {
 		// TODO(edsch): Sanitize paths?
 		digest, err := be.uploadTree(ctx, request.InstanceName, path.Join(pathBuildRoot, outputDirectory))

@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	"google.golang.org/grpc/status"
 )
 
 type cachingBuildExecutor struct {
@@ -21,19 +22,16 @@ func NewCachingBuildExecutor(base BuildExecutor, actionCache ac.ActionCache) Bui
 	}
 }
 
-func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
-	response, err := be.base.Execute(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-	if !request.Action.DoNotCache && response.Result.ExitCode == 0 {
+func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) *remoteexecution.ExecuteResponse {
+	response := be.base.Execute(ctx, request)
+	if !request.Action.DoNotCache && status.ErrorProto(response.Status) == nil {
 		digest, err := util.DigestFromMessage(request.Action)
 		if err != nil {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 		if err := be.actionCache.PutActionResult(ctx, request.InstanceName, digest, response.Result); err != nil {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 	}
-	return response, nil
+	return response
 }

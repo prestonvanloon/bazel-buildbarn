@@ -25,7 +25,6 @@ type synchronousBuildJob struct {
 
 	stage                   remoteexecution.ExecuteOperationMetadata_Stage
 	executeResponse         *remoteexecution.ExecuteResponse
-	executeError            error
 	executeTransitionWakeup *sync.Cond
 }
 
@@ -48,10 +47,6 @@ func (job *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 			log.Fatal("Failed to marshal execute response: ", err)
 		}
 		operation.Result = &longrunning.Operation_Response{Response: response}
-	} else if job.executeError != nil {
-		s, _ := status.FromError(job.executeError)
-		operation.Done = true
-		operation.Result = &longrunning.Operation_Error{Error: s.Proto()}
 	}
 	return operation
 }
@@ -59,7 +54,7 @@ func (job *synchronousBuildJob) getCurrentState() *longrunning.Operation {
 // TODO(edsch): Should take a context.
 // TODO(edsch): Should wake up periodically.
 func (job *synchronousBuildJob) waitForTransition() {
-	if job.executeResponse == nil && job.executeError == nil {
+	if job.executeResponse == nil {
 		job.executeTransitionWakeup.Wait()
 	}
 }
@@ -173,17 +168,13 @@ func (bq *SynchronousBuildQueue) Run() {
 		// TODO(edsch): Set up a proper context with a timeout.
 		job.stage = remoteexecution.ExecuteOperationMetadata_EXECUTING
 		bq.jobsLock.Unlock()
-		executeResponse, err := bq.buildExecutor.Execute(context.Background(), &job.executeRequest)
+		executeResponse := bq.buildExecutor.Execute(context.Background(), &job.executeRequest)
 		bq.jobsLock.Lock()
 
 		// Mark completion.
 		delete(bq.jobsDeduplicationMap, job.deduplicationKey)
 		job.stage = remoteexecution.ExecuteOperationMetadata_COMPLETED
 		job.executeResponse = executeResponse
-		job.executeError = err
 		job.executeTransitionWakeup.Broadcast()
-		if job.executeError != nil {
-			log.Print(job.executeError)
-		}
 	}
 }

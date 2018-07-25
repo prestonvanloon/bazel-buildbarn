@@ -200,10 +200,10 @@ func (be *localBuildExecutor) uploadTree(ctx context.Context, instance string, p
 	return be.contentAddressableStorage.PutTree(ctx, instance, tree)
 }
 
-func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) *remoteexecution.ExecuteResponse {
 	// Set up inputs.
 	if err := be.prepareFilesystem(ctx, request); err != nil {
-		return nil, err
+		return convertErrorToExecuteResponse(err)
 	}
 
 	// Invoke command.
@@ -213,18 +213,18 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 			waitStatus := exitError.Sys().(syscall.WaitStatus)
 			exitCode = waitStatus.ExitStatus()
 		} else {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 	}
 
 	// Upload command output.
 	stdoutDigest, _, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, pathStdout)
 	if err != nil {
-		return nil, err
+		return convertErrorToExecuteResponse(err)
 	}
 	stderrDigest, _, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, pathStderr)
 	if err != nil {
-		return nil, err
+		return convertErrorToExecuteResponse(err)
 	}
 
 	response := &remoteexecution.ExecuteResponse{
@@ -239,14 +239,14 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 	for _, outputFile := range request.Action.OutputFiles {
 		outputPath, err := joinPathSafe(pathBuildRoot, outputFile)
 		if err != nil {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 		digest, isExecutable, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, outputPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 		response.Result.OutputFiles = append(response.Result.OutputFiles, &remoteexecution.OutputFile{
 			Path:         outputFile,
@@ -259,11 +259,11 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 	for _, outputDirectory := range request.Action.OutputDirectories {
 		outputPath, err := joinPathSafe(pathBuildRoot, outputDirectory)
 		if err != nil {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 		digest, err := be.uploadTree(ctx, request.InstanceName, outputPath)
 		if err != nil {
-			return nil, err
+			return convertErrorToExecuteResponse(err)
 		}
 		if digest != nil {
 			response.Result.OutputDirectories = append(response.Result.OutputDirectories, &remoteexecution.OutputDirectory{
@@ -272,5 +272,5 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 			})
 		}
 	}
-	return response, nil
+	return response
 }

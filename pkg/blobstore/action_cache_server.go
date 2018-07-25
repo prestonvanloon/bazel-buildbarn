@@ -22,7 +22,7 @@ func NewActionCacheServer(actionCache BlobAccess) remoteexecution.ActionCacheSer
 
 func (s *actionCacheServer) GetActionResult(ctx context.Context, in *remoteexecution.GetActionResultRequest) (*remoteexecution.ActionResult, error) {
 	var actionResult remoteexecution.ActionResult
-	if err := GetMessageFromBlobAccess(s.actionCache, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
+	if err := GetMessageFromBlobAccess(s.actionCache, ctx, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
 		log.Print("actionCacheServer.GetActionResult: ", err)
 		return nil, err
 	}

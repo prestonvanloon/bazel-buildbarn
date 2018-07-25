@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -41,12 +43,12 @@ func NewS3BlobAccess(s3 *s3.S3, uploader *s3manager.Uploader, bucketName *string
 	}
 }
 
-func (ba *s3BlobAccess) Get(instance string, digest *remoteexecution.Digest) io.ReadCloser {
+func (ba *s3BlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
 		return &errorReader{err: err}
 	}
-	result, err := ba.s3.GetObject(&s3.GetObjectInput{
+	result, err := ba.s3.GetObjectWithContext(ctx, &s3.GetObjectInput{
 		Bucket: ba.bucketName,
 		Key:    &key,
 	})
@@ -56,12 +58,12 @@ func (ba *s3BlobAccess) Get(instance string, digest *remoteexecution.Digest) io.
 	return result.Body
 }
 
-func (ba *s3BlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {
+func (ba *s3BlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.Reader) error {
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
 		return err
 	}
-	_, err = ba.uploader.Upload(&s3manager.UploadInput{
+	_, err = ba.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket: ba.bucketName,
 		Key:    &key,
 		Body:   r,
@@ -69,14 +71,14 @@ func (ba *s3BlobAccess) Put(instance string, digest *remoteexecution.Digest, r i
 	return convertS3Error(err)
 }
 
-func (ba *s3BlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
+func (ba *s3BlobAccess) FindMissing(ctx context.Context, instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	var missing []*remoteexecution.Digest
 	for _, digest := range digests {
 		key, err := ba.blobKeyer(instance, digest)
 		if err != nil {
 			return nil, err
 		}
-		_, err = ba.s3.HeadObject(&s3.HeadObjectInput{
+		_, err = ba.s3.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 			Bucket: ba.bucketName,
 			Key:    &key,
 		})

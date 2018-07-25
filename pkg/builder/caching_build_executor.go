@@ -4,6 +4,8 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
@@ -19,8 +21,8 @@ func NewCachingBuildExecutor(base BuildExecutor, blobAccess blobstore.BlobAccess
 	}
 }
 
-func (be *cachingBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
-	response, err := be.base.Execute(request)
+func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+	response, err := be.base.Execute(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +31,7 @@ func (be *cachingBuildExecutor) Execute(request *remoteexecution.ExecuteRequest)
 		if err != nil {
 			return nil, err
 		}
-		if err := blobstore.PutMessageToBlobAccess(be.blobAccess, request.InstanceName, digest, response.Result); err != nil {
+		if err := blobstore.PutMessageToBlobAccess(be.blobAccess, ctx, request.InstanceName, digest, response.Result); err != nil {
 			return nil, err
 		}
 	}

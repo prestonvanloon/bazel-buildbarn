@@ -170,9 +170,10 @@ func (bq *SynchronousBuildQueue) Run() {
 		bq.jobsPending = bq.jobsPending[1:]
 
 		// Perform execution of the job.
+		// TODO(edsch): Set up a proper context with a timeout.
 		job.stage = remoteexecution.ExecuteOperationMetadata_EXECUTING
 		bq.jobsLock.Unlock()
-		executeResponse, err := bq.buildExecutor.Execute(&job.executeRequest)
+		executeResponse, err := bq.buildExecutor.Execute(context.Background(), &job.executeRequest)
 		bq.jobsLock.Lock()
 
 		// Mark completion.

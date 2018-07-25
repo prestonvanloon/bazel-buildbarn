@@ -6,6 +6,8 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
@@ -19,7 +21,7 @@ func NewBlobAccessInputFileExposer(contentAddressableStorage blobstore.BlobAcces
 	}
 }
 
-func (fe *blobAccessInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
+func (fe *blobAccessInputFileExposer) Expose(ctx context.Context, instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
 	var mode os.FileMode = 0444
 	if isExecutable {
 		mode = 0555
@@ -31,7 +33,7 @@ func (fe *blobAccessInputFileExposer) Expose(instance string, digest *remoteexec
 	defer w.Close()
 
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
-	r := fe.contentAddressableStorage.Get(instance, digest)
+	r := fe.contentAddressableStorage.Get(ctx, instance, digest)
 	_, err = io.Copy(w, r)
 	defer r.Close()
 

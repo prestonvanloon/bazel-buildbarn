@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
@@ -36,38 +38,38 @@ func NewMerkleBlobAccess(blobAccess BlobAccess) BlobAccess {
 	}
 }
 
-func (ba *merkleBlobAccess) Get(instance string, digest *remoteexecution.Digest) io.ReadCloser {
+func (ba *merkleBlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return &errorReader{err: err}
 	}
 	return &checksumValidatingReader{
-		reader:   ba.blobAccess.Get(instance, digest),
+		reader:   ba.blobAccess.Get(ctx, instance, digest),
 		checksum: checksum,
 		sizeLeft: size,
 	}
 }
 
-func (ba *merkleBlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {
+func (ba *merkleBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.Reader) error {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
 		return err
 	}
-	return ba.blobAccess.Put(instance, digest, &checksumValidatingReader{
+	return ba.blobAccess.Put(ctx, instance, digest, &checksumValidatingReader{
 		reader:   r,
 		checksum: checksum,
 		sizeLeft: size,
 	})
 }
 
-func (ba *merkleBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
+func (ba *merkleBlobAccess) FindMissing(ctx context.Context, instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	for _, digest := range digests {
 		_, _, err := extractDigest(digest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return ba.blobAccess.FindMissing(instance, digests)
+	return ba.blobAccess.FindMissing(ctx, instance, digests)
 }
 
 type checksumValidatingReader struct {

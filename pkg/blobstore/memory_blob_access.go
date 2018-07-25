@@ -8,6 +8,8 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,7 +28,11 @@ func NewMemoryBlobAccess(blobKeyer util.DigestKeyer) BlobAccess {
 	}
 }
 
-func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest) io.ReadCloser {
+func (ba *memoryBlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
+	if err := ctx.Err(); err != nil {
+		return &errorReader{err: err}
+	}
+
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
 		return &errorReader{err: err}
@@ -40,7 +46,11 @@ func (ba *memoryBlobAccess) Get(instance string, digest *remoteexecution.Digest)
 	return ioutil.NopCloser(bytes.NewReader(blob))
 }
 
-func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest, r io.Reader) error {
+func (ba *memoryBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.Reader) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	key, err := ba.blobKeyer(instance, digest)
 	if err != nil {
 		return err
@@ -55,7 +65,11 @@ func (ba *memoryBlobAccess) Put(instance string, digest *remoteexecution.Digest,
 	return nil
 }
 
-func (ba *memoryBlobAccess) FindMissing(instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
+func (ba *memoryBlobAccess) FindMissing(ctx context.Context, instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var missing []*remoteexecution.Digest
 	ba.lock.RLock()
 	defer ba.lock.RUnlock()

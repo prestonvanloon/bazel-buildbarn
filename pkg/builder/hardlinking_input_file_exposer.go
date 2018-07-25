@@ -7,6 +7,8 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
@@ -53,7 +55,7 @@ func (fe *hardlinkingInputFileExposer) makeSpace(size int64) error {
 	return nil
 }
 
-func (fe *hardlinkingInputFileExposer) Expose(instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
+func (fe *hardlinkingInputFileExposer) Expose(ctx context.Context, instance string, digest *remoteexecution.Digest, outputPath string, isExecutable bool) error {
 	key, err := fe.digestKeyer(instance, digest)
 	if err != nil {
 		return err
@@ -69,7 +71,7 @@ func (fe *hardlinkingInputFileExposer) Expose(instance string, digest *remoteexe
 		if err := fe.makeSpace(digest.SizeBytes); err != nil {
 			return err
 		}
-		if err := fe.base.Expose(instance, digest, cachePath, isExecutable); err != nil {
+		if err := fe.base.Expose(ctx, instance, digest, cachePath, isExecutable); err != nil {
 			return err
 		}
 		fe.filesPresentList = append(fe.filesPresentList, key)

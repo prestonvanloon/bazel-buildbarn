@@ -16,6 +16,8 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )
 
@@ -38,36 +40,36 @@ func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess, input
 	}
 }
 
-func (be *localBuildExecutor) createInputDirectory(instance string, digest *remoteexecution.Digest, base string) error {
+func (be *localBuildExecutor) createInputDirectory(ctx context.Context, instance string, digest *remoteexecution.Digest, base string) error {
 	if err := os.Mkdir(base, 0777); err != nil {
 		return err
 	}
 
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	var directory remoteexecution.Directory
-	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, instance, digest, &directory); err != nil {
+	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, ctx, instance, digest, &directory); err != nil {
 		return err
 	}
 
 	for _, file := range directory.Files {
 		// TODO(edsch): Path validation?
-		if err := be.inputFileExposer.Expose(instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
+		if err := be.inputFileExposer.Expose(ctx, instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
 			return err
 		}
 	}
 	for _, directory := range directory.Directories {
 		// TODO(edsch): Path validation?
-		if err := be.createInputDirectory(instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
+		if err := be.createInputDirectory(ctx, instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.ExecuteRequest) error {
+func (be *localBuildExecutor) prepareFilesystem(ctx context.Context, request *remoteexecution.ExecuteRequest) error {
 	// Copy input files into build environment.
 	os.RemoveAll(pathBuildRoot)
-	if err := be.createInputDirectory(request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
+	if err := be.createInputDirectory(ctx, request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return err
 	}
@@ -85,11 +87,11 @@ func (be *localBuildExecutor) prepareFilesystem(request *remoteexecution.Execute
 	return os.Mkdir(pathTempRoot, 0777)
 }
 
-func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest) error {
+func (be *localBuildExecutor) runCommand(ctx context.Context, request *remoteexecution.ExecuteRequest) error {
 	// Fetch command.
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	var command remoteexecution.Command
-	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
+	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, ctx, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
 		log.Print("Execution.Execute: ", err)
 		return err
 	}
@@ -98,8 +100,7 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	}
 
 	// Prepare the command to run.
-	// TODO(edsch): Use CommandContext(), so we have a proper timeout.
-	cmd := exec.Command(command.Arguments[0], command.Arguments[1:]...)
+	cmd := exec.CommandContext(ctx, command.Arguments[0], command.Arguments[1:]...)
 	cmd.Dir = pathBuildRoot
 	cmd.Env = []string{"HOME=" + pathTempRoot}
 	for _, environmentVariable := range command.EnvironmentVariables {
@@ -129,7 +130,7 @@ func (be *localBuildExecutor) runCommand(request *remoteexecution.ExecuteRequest
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) uploadFile(instance string, path string) (*remoteexecution.Digest, bool, error) {
+func (be *localBuildExecutor) uploadFile(ctx context.Context, instance string, path string) (*remoteexecution.Digest, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, false, err
@@ -155,13 +156,13 @@ func (be *localBuildExecutor) uploadFile(instance string, path string) (*remotee
 	}
 
 	// Store in content addressable storage.
-	if err := be.contentAddressableStorage.Put(instance, digest, file); err != nil {
+	if err := be.contentAddressableStorage.Put(ctx, instance, digest, file); err != nil {
 		return nil, false, err
 	}
 	return digest, (info.Mode() & 0111) != 0, nil
 }
 
-func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, permitNonExistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
+func (be *localBuildExecutor) uploadDirectory(ctx context.Context, instance string, basePath string, permitNonExistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
 		if permitNonExistent && os.IsNotExist(err) {
@@ -176,7 +177,7 @@ func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, 
 		fullPath := path.Join(basePath, name)
 		switch file.Mode() & os.ModeType {
 		case 0:
-			digest, isExecutable, err := be.uploadFile(instance, fullPath)
+			digest, isExecutable, err := be.uploadFile(ctx, instance, fullPath)
 			if err != nil {
 				return nil, err
 			}
@@ -186,7 +187,7 @@ func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, 
 				IsExecutable: isExecutable,
 			})
 		case os.ModeDir:
-			child, err := be.uploadDirectory(instance, path.Join(basePath, name), false, children)
+			child, err := be.uploadDirectory(ctx, instance, path.Join(basePath, name), false, children)
 			if err != nil {
 				return nil, err
 			}
@@ -206,10 +207,10 @@ func (be *localBuildExecutor) uploadDirectory(instance string, basePath string, 
 	return &directory, nil
 }
 
-func (be *localBuildExecutor) uploadTree(instance string, path string) (*remoteexecution.Digest, error) {
+func (be *localBuildExecutor) uploadTree(ctx context.Context, instance string, path string) (*remoteexecution.Digest, error) {
 	// Gather all individual directory objects and turn them into a tree.
 	children := map[string]*remoteexecution.Directory{}
-	root, err := be.uploadDirectory(instance, path, true, children)
+	root, err := be.uploadDirectory(ctx, instance, path, true, children)
 	if root == nil || err != nil {
 		return nil, err
 	}
@@ -225,21 +226,21 @@ func (be *localBuildExecutor) uploadTree(instance string, path string) (*remotee
 	if err != nil {
 		return nil, err
 	}
-	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, instance, digest, tree); err != nil {
+	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, ctx, instance, digest, tree); err != nil {
 		return nil, err
 	}
 	return digest, nil
 }
 
-func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
+func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
 	// Set up inputs.
-	if err := be.prepareFilesystem(request); err != nil {
+	if err := be.prepareFilesystem(ctx, request); err != nil {
 		return nil, err
 	}
 
 	// Invoke command.
 	exitCode := 0
-	if err := be.runCommand(request); err != nil {
+	if err := be.runCommand(ctx, request); err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			waitStatus := exitError.Sys().(syscall.WaitStatus)
 			exitCode = waitStatus.ExitStatus()
@@ -249,11 +250,11 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	}
 
 	// Upload command output.
-	stdoutDigest, _, err := be.uploadFile(request.InstanceName, pathStdout)
+	stdoutDigest, _, err := be.uploadFile(ctx, request.InstanceName, pathStdout)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, _, err := be.uploadFile(request.InstanceName, pathStderr)
+	stderrDigest, _, err := be.uploadFile(ctx, request.InstanceName, pathStderr)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +270,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
 		// TODO(edsch): Sanitize paths?
-		digest, isExecutable, err := be.uploadFile(request.InstanceName, path.Join(pathBuildRoot, outputFile))
+		digest, isExecutable, err := be.uploadFile(ctx, request.InstanceName, path.Join(pathBuildRoot, outputFile))
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -286,7 +287,7 @@ func (be *localBuildExecutor) Execute(request *remoteexecution.ExecuteRequest) (
 	// TODO(edsch): Upload output directories.
 	for _, outputDirectory := range request.Action.OutputDirectories {
 		// TODO(edsch): Sanitize paths?
-		digest, err := be.uploadTree(request.InstanceName, path.Join(pathBuildRoot, outputDirectory))
+		digest, err := be.uploadTree(ctx, request.InstanceName, path.Join(pathBuildRoot, outputDirectory))
 		if err != nil {
 			return nil, err
 		}

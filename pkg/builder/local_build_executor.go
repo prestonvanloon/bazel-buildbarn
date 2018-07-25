@@ -1,18 +1,15 @@
 package builder
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"syscall"
 
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
 	"golang.org/x/net/context"
@@ -36,14 +33,12 @@ func joinPathSafe(elem ...string) (string, error) {
 }
 
 type localBuildExecutor struct {
-	contentAddressableStorage blobstore.BlobAccess
-	inputFileExposer          InputFileExposer
+	contentAddressableStorage cas.ContentAddressableStorage
 }
 
-func NewLocalBuildExecutor(contentAddressableStorage blobstore.BlobAccess, inputFileExposer InputFileExposer) BuildExecutor {
+func NewLocalBuildExecutor(contentAddressableStorage cas.ContentAddressableStorage) BuildExecutor {
 	return &localBuildExecutor{
 		contentAddressableStorage: contentAddressableStorage,
-		inputFileExposer:          inputFileExposer,
 	}
 }
 
@@ -53,8 +48,8 @@ func (be *localBuildExecutor) createInputDirectory(ctx context.Context, instance
 	}
 
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
-	var directory remoteexecution.Directory
-	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, ctx, instance, digest, &directory); err != nil {
+	directory, err := be.contentAddressableStorage.GetDirectory(ctx, instance, digest)
+	if err != nil {
 		return err
 	}
 
@@ -63,7 +58,7 @@ func (be *localBuildExecutor) createInputDirectory(ctx context.Context, instance
 		if err != nil {
 			return err
 		}
-		if err := be.inputFileExposer.Expose(ctx, instance, file.Digest, childPath, file.IsExecutable); err != nil {
+		if err := be.contentAddressableStorage.GetFile(ctx, instance, file.Digest, childPath, file.IsExecutable); err != nil {
 			return err
 		}
 	}
@@ -105,8 +100,8 @@ func (be *localBuildExecutor) prepareFilesystem(ctx context.Context, request *re
 func (be *localBuildExecutor) runCommand(ctx context.Context, request *remoteexecution.ExecuteRequest) error {
 	// Fetch command.
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
-	var command remoteexecution.Command
-	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, ctx, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
+	command, err := be.contentAddressableStorage.GetCommand(ctx, request.InstanceName, request.Action.CommandDigest)
+	if err != nil {
 		return err
 	}
 	if len(command.Arguments) < 1 {
@@ -144,38 +139,6 @@ func (be *localBuildExecutor) runCommand(ctx context.Context, request *remoteexe
 	return cmd.Run()
 }
 
-func (be *localBuildExecutor) uploadFile(ctx context.Context, instance string, path string) (*remoteexecution.Digest, bool, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, false, err
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		return nil, false, err
-	}
-
-	// Walk through the file to compute the digest.
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return nil, false, err
-	}
-	digest := &remoteexecution.Digest{
-		Hash:      hex.EncodeToString(hasher.Sum(nil)),
-		SizeBytes: info.Size(),
-	}
-	if _, err := file.Seek(0, 0); err != nil {
-		return nil, false, err
-	}
-
-	// Store in content addressable storage.
-	if err := be.contentAddressableStorage.Put(ctx, instance, digest, file); err != nil {
-		return nil, false, err
-	}
-	return digest, (info.Mode() & 0111) != 0, nil
-}
-
 func (be *localBuildExecutor) uploadDirectory(ctx context.Context, instance string, basePath string, permitNonExistent bool, children map[string]*remoteexecution.Directory) (*remoteexecution.Directory, error) {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
@@ -191,7 +154,7 @@ func (be *localBuildExecutor) uploadDirectory(ctx context.Context, instance stri
 		fullPath := path.Join(basePath, name)
 		switch file.Mode() & os.ModeType {
 		case 0:
-			digest, isExecutable, err := be.uploadFile(ctx, instance, fullPath)
+			digest, isExecutable, err := be.contentAddressableStorage.PutFile(ctx, instance, fullPath)
 			if err != nil {
 				return nil, err
 			}
@@ -234,16 +197,7 @@ func (be *localBuildExecutor) uploadTree(ctx context.Context, instance string, p
 	for _, child := range children {
 		tree.Children = append(tree.Children, child)
 	}
-
-	// Upload the tree.
-	digest, err := util.DigestFromMessage(tree)
-	if err != nil {
-		return nil, err
-	}
-	if err := blobstore.PutMessageToBlobAccess(be.contentAddressableStorage, ctx, instance, digest, tree); err != nil {
-		return nil, err
-	}
-	return digest, nil
+	return be.contentAddressableStorage.PutTree(ctx, instance, tree)
 }
 
 func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*remoteexecution.ExecuteResponse, error) {
@@ -264,11 +218,11 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 	}
 
 	// Upload command output.
-	stdoutDigest, _, err := be.uploadFile(ctx, request.InstanceName, pathStdout)
+	stdoutDigest, _, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, pathStdout)
 	if err != nil {
 		return nil, err
 	}
-	stderrDigest, _, err := be.uploadFile(ctx, request.InstanceName, pathStderr)
+	stderrDigest, _, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, pathStderr)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +241,7 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 		if err != nil {
 			return nil, err
 		}
-		digest, isExecutable, err := be.uploadFile(ctx, request.InstanceName, outputPath)
+		digest, isExecutable, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, outputPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue

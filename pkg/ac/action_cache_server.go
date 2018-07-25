@@ -1,10 +1,6 @@
 package ac
 
 import (
-	"log"
-
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
-
 	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
@@ -13,22 +9,17 @@ import (
 )
 
 type actionCacheServer struct {
-	actionCache blobstore.BlobAccess
+	actionCache ActionCache
 }
 
-func NewActionCacheServer(actionCache blobstore.BlobAccess) remoteexecution.ActionCacheServer {
+func NewActionCacheServer(actionCache ActionCache) remoteexecution.ActionCacheServer {
 	return &actionCacheServer{
 		actionCache: actionCache,
 	}
 }
 
 func (s *actionCacheServer) GetActionResult(ctx context.Context, in *remoteexecution.GetActionResultRequest) (*remoteexecution.ActionResult, error) {
-	var actionResult remoteexecution.ActionResult
-	if err := blobstore.GetMessageFromBlobAccess(s.actionCache, ctx, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
-		log.Print("actionCacheServer.GetActionResult: ", err)
-		return nil, err
-	}
-	return &actionResult, nil
+	return s.actionCache.GetActionResult(ctx, in.InstanceName, in.ActionDigest)
 }
 
 func (s *actionCacheServer) UpdateActionResult(ctx context.Context, in *remoteexecution.UpdateActionResultRequest) (*remoteexecution.ActionResult, error) {

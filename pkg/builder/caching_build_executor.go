@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 
 	"golang.org/x/net/context"
@@ -10,14 +10,14 @@ import (
 )
 
 type cachingBuildExecutor struct {
-	base       BuildExecutor
-	blobAccess blobstore.BlobAccess
+	base        BuildExecutor
+	actionCache ac.ActionCache
 }
 
-func NewCachingBuildExecutor(base BuildExecutor, blobAccess blobstore.BlobAccess) BuildExecutor {
+func NewCachingBuildExecutor(base BuildExecutor, actionCache ac.ActionCache) BuildExecutor {
 	return &cachingBuildExecutor{
-		base:       base,
-		blobAccess: blobAccess,
+		base:        base,
+		actionCache: actionCache,
 	}
 }
 
@@ -31,7 +31,7 @@ func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexec
 		if err != nil {
 			return nil, err
 		}
-		if err := blobstore.PutMessageToBlobAccess(be.blobAccess, ctx, request.InstanceName, digest, response.Result); err != nil {
+		if err := be.actionCache.PutActionResult(ctx, request.InstanceName, digest, response.Result); err != nil {
 			return nil, err
 		}
 	}

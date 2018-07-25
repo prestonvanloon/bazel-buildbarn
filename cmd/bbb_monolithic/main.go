@@ -9,11 +9,11 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
-	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
-	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -47,13 +47,13 @@ func main() {
 	}()
 
 	// Storage of content and actions.
-	var contentAddressableStorage blobstore.BlobAccess
-	var actionCache blobstore.BlobAccess
+	var contentAddressableStorageBlobAccess blobstore.BlobAccess
+	var actionCacheBlobAccess blobstore.BlobAccess
 	if *s3Endpoint == "" {
-		contentAddressableStorage = blobstore.NewMetricsBlobAccess(
+		contentAddressableStorageBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance),
 			"cas_s3")
-		actionCache = blobstore.NewMetricsBlobAccess(
+		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance),
 			"ac_s3")
 	} else {
@@ -69,37 +69,36 @@ func main() {
 		uploader := s3manager.NewUploader(session)
 		uploader.Concurrency = 1
 
-		contentAddressableStorage = blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance)
-		actionCache = blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance)
+		contentAddressableStorageBlobAccess = blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance)
+		actionCacheBlobAccess = blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance)
 	}
-	contentAddressableStorage = blobstore.NewMerkleBlobAccess(contentAddressableStorage)
+	contentAddressableStorageBlobAccess = blobstore.NewMerkleBlobAccess(contentAddressableStorageBlobAccess)
 
 	// On-disk caching of content for efficient linking into build environments.
 	if err := os.Mkdir("/cache", 0); err != nil {
 		log.Fatal("Failed to create cache directory: ", err)
 	}
-	inputFileExposer := builder.NewHardlinkingInputFileExposer(
-		builder.NewBlobAccessInputFileExposer(
-			blobstore.NewMetricsBlobAccess(contentAddressableStorage, "cas_input_file_exposer")),
-		util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30)
 
 	buildExecutor := builder.NewCachingBuildExecutor(
 		builder.NewLocalBuildExecutor(
-			blobstore.NewMetricsBlobAccess(contentAddressableStorage, "cas_build_executor"),
-			inputFileExposer),
-		blobstore.NewMetricsBlobAccess(actionCache, "ac_build_executor"))
+			cas.NewHardlinkingContentAddressableStorage(
+				cas.NewBlobAccessContentAddressableStorage(
+					blobstore.NewMetricsBlobAccess(contentAddressableStorageBlobAccess, "cas_build_executor")),
+				util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30)),
+		ac.NewBlobAccessActionCache(
+			blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_build_executor")))
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)
 	go synchronousBuildQueue.Run()
-	buildQueue := builder.NewCachedBuildQueue(actionCache, synchronousBuildQueue)
+	buildQueue := builder.NewCachedBuildQueue(actionCacheBlobAccess, synchronousBuildQueue)
 
 	sock, err := net.Listen("tcp", ":8980")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(actionCache))
-	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorage))
-	bytestream.RegisterByteStreamServer(s, cas.NewByteStreamServer(contentAddressableStorage))
+	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(ac.NewBlobAccessActionCache(actionCacheBlobAccess)))
+	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorageBlobAccess))
+	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorageBlobAccess))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)
 	watcher.RegisterWatcherServer(s, buildQueue)
 	if err := s.Serve(sock); err != nil {

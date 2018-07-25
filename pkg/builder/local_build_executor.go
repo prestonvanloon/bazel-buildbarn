@@ -84,7 +84,6 @@ func (be *localBuildExecutor) prepareFilesystem(ctx context.Context, request *re
 	// Copy input files into build environment.
 	os.RemoveAll(pathBuildRoot)
 	if err := be.createInputDirectory(ctx, request.InstanceName, request.Action.InputRootDigest, pathBuildRoot); err != nil {
-		log.Print("Execution.Execute: ", err)
 		return err
 	}
 
@@ -109,7 +108,6 @@ func (be *localBuildExecutor) runCommand(ctx context.Context, request *remoteexe
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	var command remoteexecution.Command
 	if err := blobstore.GetMessageFromBlobAccess(be.contentAddressableStorage, ctx, request.InstanceName, request.Action.CommandDigest, &command); err != nil {
-		log.Print("Execution.Execute: ", err)
 		return err
 	}
 	if len(command.Arguments) < 1 {

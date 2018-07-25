@@ -1,9 +1,7 @@
-package main
+package blobstore
 
 import (
 	"log"
-
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
 
@@ -13,10 +11,10 @@ import (
 )
 
 type actionCacheServer struct {
-	actionCache blobstore.BlobAccess
+	actionCache BlobAccess
 }
 
-func NewActionCacheServer(actionCache blobstore.BlobAccess) remoteexecution.ActionCacheServer {
+func NewActionCacheServer(actionCache BlobAccess) remoteexecution.ActionCacheServer {
 	return &actionCacheServer{
 		actionCache: actionCache,
 	}
@@ -24,7 +22,7 @@ func NewActionCacheServer(actionCache blobstore.BlobAccess) remoteexecution.Acti
 
 func (s *actionCacheServer) GetActionResult(ctx context.Context, in *remoteexecution.GetActionResultRequest) (*remoteexecution.ActionResult, error) {
 	var actionResult remoteexecution.ActionResult
-	if err := blobstore.GetMessageFromBlobAccess(s.actionCache, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
+	if err := GetMessageFromBlobAccess(s.actionCache, in.InstanceName, in.ActionDigest, &actionResult); err != nil {
 		log.Print("actionCacheServer.GetActionResult: ", err)
 		return nil, err
 	}

@@ -82,9 +82,9 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	remoteexecution.RegisterActionCacheServer(s, NewActionCacheServer(actionCache))
-	remoteexecution.RegisterContentAddressableStorageServer(s, NewContentAddressableStorageServer(contentAddressableStorage))
-	bytestream.RegisterByteStreamServer(s, NewByteStreamServer(contentAddressableStorage))
+	remoteexecution.RegisterActionCacheServer(s, blobstore.NewActionCacheServer(actionCache))
+	remoteexecution.RegisterContentAddressableStorageServer(s, blobstore.NewContentAddressableStorageServer(contentAddressableStorage))
+	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorage))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)
 	watcher.RegisterWatcherServer(s, buildQueue)
 	if err := s.Serve(sock); err != nil {

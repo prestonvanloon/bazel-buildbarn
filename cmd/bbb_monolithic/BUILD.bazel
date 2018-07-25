@@ -3,12 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "action_cache_server.go",
-        "byte_stream_service.go",
-        "content_addressable_storage_server.go",
-        "main.go",
-    ],
+    srcs = ["main.go"],
     importpath = "github.com/EdSchouten/bazel-buildbarn/cmd/bbb_monolithic",
     visibility = ["//visibility:private"],
     deps = [
@@ -24,9 +19,6 @@ go_library(
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
         "@go_googleapis//google/watcher/v1:watcher_go_proto",
         "@org_golang_google_grpc//:go_default_library",
-        "@org_golang_google_grpc//codes:go_default_library",
-        "@org_golang_google_grpc//status:go_default_library",
-        "@org_golang_x_net//context:go_default_library",
     ],
 )
 

@@ -1,9 +1,7 @@
-package main
+package blobstore
 
 import (
 	"log"
-
-	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
 
@@ -13,10 +11,10 @@ import (
 )
 
 type contentAddressableStorageServer struct {
-	contentAddressableStorage blobstore.BlobAccess
+	contentAddressableStorage BlobAccess
 }
 
-func NewContentAddressableStorageServer(contentAddressableStorage blobstore.BlobAccess) remoteexecution.ContentAddressableStorageServer {
+func NewContentAddressableStorageServer(contentAddressableStorage BlobAccess) remoteexecution.ContentAddressableStorageServer {
 	return &contentAddressableStorageServer{
 		contentAddressableStorage: contentAddressableStorage,
 	}

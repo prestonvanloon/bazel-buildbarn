@@ -35,7 +35,7 @@ func (fe *blobAccessInputFileExposer) Expose(ctx context.Context, instance strin
 	// TODO(edsch): Translate NOT_FOUND to INVALID_PRECONDITION?
 	r := fe.contentAddressableStorage.Get(ctx, instance, digest)
 	_, err = io.Copy(w, r)
-	defer r.Close()
+	r.Close()
 
 	// Ensure no traces are left behind upon failure.
 	if err != nil {

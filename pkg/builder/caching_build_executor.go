@@ -24,7 +24,7 @@ func NewCachingBuildExecutor(base BuildExecutor, actionCache ac.ActionCache) Bui
 
 func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) *remoteexecution.ExecuteResponse {
 	response := be.base.Execute(ctx, request)
-	if !request.Action.DoNotCache && status.ErrorProto(response.Status) == nil {
+	if !request.Action.DoNotCache && status.ErrorProto(response.Status) == nil && response.Result.ExitCode == 0 {
 		digest, err := util.DigestFromMessage(request.Action)
 		if err != nil {
 			return convertErrorToExecuteResponse(err)

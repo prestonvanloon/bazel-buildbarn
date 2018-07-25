@@ -28,6 +28,14 @@ const (
 	pathStderr    = "/stderr"
 )
 
+func joinPathSafe(dir string, file string) (string, error) {
+	joined := path.Join(dir, file)
+	if joined != path.Clean(joined) {
+		return "", fmt.Errorf("Attempted to access non-clean path %s", joined)
+	}
+	return joined, nil
+}
+
 type localBuildExecutor struct {
 	contentAddressableStorage blobstore.BlobAccess
 	inputFileExposer          InputFileExposer
@@ -52,14 +60,20 @@ func (be *localBuildExecutor) createInputDirectory(ctx context.Context, instance
 	}
 
 	for _, file := range directory.Files {
-		// TODO(edsch): Path validation?
-		if err := be.inputFileExposer.Expose(ctx, instance, file.Digest, path.Join(base, file.Name), file.IsExecutable); err != nil {
+		childPath, err := joinPathSafe(base, file.Name)
+		if err != nil {
+			return err
+		}
+		if err := be.inputFileExposer.Expose(ctx, instance, file.Digest, childPath, file.IsExecutable); err != nil {
 			return err
 		}
 	}
 	for _, directory := range directory.Directories {
-		// TODO(edsch): Path validation?
-		if err := be.createInputDirectory(ctx, instance, directory.Digest, path.Join(base, directory.Name)); err != nil {
+		childPath, err := joinPathSafe(base, directory.Name)
+		if err != nil {
+			return err
+		}
+		if err := be.createInputDirectory(ctx, instance, directory.Digest, childPath); err != nil {
 			return err
 		}
 	}
@@ -76,8 +90,11 @@ func (be *localBuildExecutor) prepareFilesystem(ctx context.Context, request *re
 
 	// Ensure that directories where output files are stored are present.
 	for _, outputFile := range request.Action.OutputFiles {
-		// TODO(edsch): Path validation?
-		if err := os.MkdirAll(path.Dir(path.Join(pathBuildRoot, outputFile)), 0777); err != nil {
+		outputPath, err := joinPathSafe(pathBuildRoot, outputFile)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(path.Dir(outputPath), 0777); err != nil {
 			return err
 		}
 	}
@@ -187,7 +204,7 @@ func (be *localBuildExecutor) uploadDirectory(ctx context.Context, instance stri
 				IsExecutable: isExecutable,
 			})
 		case os.ModeDir:
-			child, err := be.uploadDirectory(ctx, instance, path.Join(basePath, name), false, children)
+			child, err := be.uploadDirectory(ctx, instance, fullPath, false, children)
 			if err != nil {
 				return nil, err
 			}
@@ -269,8 +286,11 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 
 	// Upload output files.
 	for _, outputFile := range request.Action.OutputFiles {
-		// TODO(edsch): Sanitize paths?
-		digest, isExecutable, err := be.uploadFile(ctx, request.InstanceName, path.Join(pathBuildRoot, outputFile))
+		outputPath, err := joinPathSafe(pathBuildRoot, outputFile)
+		if err != nil {
+			return nil, err
+		}
+		digest, isExecutable, err := be.uploadFile(ctx, request.InstanceName, outputPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -286,8 +306,11 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 
 	// Upload output directories.
 	for _, outputDirectory := range request.Action.OutputDirectories {
-		// TODO(edsch): Sanitize paths?
-		digest, err := be.uploadTree(ctx, request.InstanceName, path.Join(pathBuildRoot, outputDirectory))
+		outputPath, err := joinPathSafe(pathBuildRoot, outputDirectory)
+		if err != nil {
+			return nil, err
+		}
+		digest, err := be.uploadTree(ctx, request.InstanceName, outputPath)
 		if err != nil {
 			return nil, err
 		}

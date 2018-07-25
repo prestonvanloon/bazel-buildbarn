@@ -9,7 +9,6 @@ go_library(
     deps = [
         "//pkg/ac:go_default_library",
         "//pkg/blobstore:go_default_library",
-        "//pkg/builder:go_default_library",
         "//pkg/cas:go_default_library",
         "//pkg/util:go_default_library",
         "@com_github_aws_aws_sdk_go//aws:go_default_library",
@@ -20,7 +19,6 @@ go_library(
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
         "@go_googleapis//google/bytestream:bytestream_go_proto",
         "@go_googleapis//google/devtools/remoteexecution/v1test:remoteexecution_go_proto",
-        "@go_googleapis//google/watcher/v1:watcher_go_proto",
         "@org_golang_google_grpc//:go_default_library",
     ],
 )

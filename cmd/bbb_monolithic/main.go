@@ -90,7 +90,10 @@ func main() {
 			blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_build_executor")))
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)
 	go synchronousBuildQueue.Run()
-	buildQueue := builder.NewCachedBuildQueue(actionCacheBlobAccess, synchronousBuildQueue)
+	buildQueue := builder.NewCachedBuildQueue(
+		synchronousBuildQueue,
+		ac.NewBlobAccessActionCache(
+			blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_cached_build_queue")))
 
 	sock, err := net.Listen("tcp", ":8980")
 	if err != nil {

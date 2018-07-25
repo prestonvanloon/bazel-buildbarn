@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
@@ -38,6 +39,7 @@ func main() {
 	syscall.Umask(0)
 
 	// Web server for metrics and profiling.
+	http.Handle("/metrics", promhttp.Handler())
 	go func() {
 		log.Println(http.ListenAndServe(":80", nil))
 	}()
@@ -46,8 +48,12 @@ func main() {
 	var contentAddressableStorage blobstore.BlobAccess
 	var actionCache blobstore.BlobAccess
 	if *s3Endpoint == "" {
-		contentAddressableStorage = blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance)
-		actionCache = blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance)
+		contentAddressableStorage = blobstore.NewMetricsBlobAccess(
+			blobstore.NewMemoryBlobAccess(util.KeyDigestWithoutInstance),
+			"cas_s3")
+		actionCache = blobstore.NewMetricsBlobAccess(
+			blobstore.NewMemoryBlobAccess(util.KeyDigestWithInstance),
+			"ac_s3")
 	} else {
 		// Create an S3 client. Set the uploader concurrency to 1 to drastically reduce memory usage.
 		session := session.New(&aws.Config{
@@ -70,9 +76,16 @@ func main() {
 	if err := os.Mkdir("/cache", 0); err != nil {
 		log.Fatal("Failed to create cache directory: ", err)
 	}
-	inputFileExposer := builder.NewHardlinkingInputFileExposer(builder.NewBlobAccessInputFileExposer(contentAddressableStorage), util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30)
+	inputFileExposer := builder.NewHardlinkingInputFileExposer(
+		builder.NewBlobAccessInputFileExposer(
+			blobstore.NewMetricsBlobAccess(contentAddressableStorage, "cas_input_file_exposer")),
+		util.KeyDigestWithoutInstance, "/cache", 10000, 1<<30)
 
-	buildExecutor := builder.NewCachingBuildExecutor(builder.NewLocalBuildExecutor(contentAddressableStorage, inputFileExposer), actionCache)
+	buildExecutor := builder.NewCachingBuildExecutor(
+		builder.NewLocalBuildExecutor(
+			blobstore.NewMetricsBlobAccess(contentAddressableStorage, "cas_build_executor"),
+			inputFileExposer),
+		blobstore.NewMetricsBlobAccess(actionCache, "ac_build_executor"))
 	synchronousBuildQueue := builder.NewSynchronousBuildQueue(buildExecutor, util.KeyDigestWithInstance, 10)
 	go synchronousBuildQueue.Run()
 	buildQueue := builder.NewCachedBuildQueue(actionCache, synchronousBuildQueue)

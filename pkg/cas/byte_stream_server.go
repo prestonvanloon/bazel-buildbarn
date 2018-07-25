@@ -1,4 +1,4 @@
-package blobstore
+package cas
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 
 	"golang.org/x/net/context"
 
@@ -73,10 +75,10 @@ func parseResourceNameWrite(resourceName string) (string, *remoteexecution.Diges
 }
 
 type byteStreamServer struct {
-	blobAccess BlobAccess
+	blobAccess blobstore.BlobAccess
 }
 
-func NewByteStreamServer(blobAccess BlobAccess) bytestream.ByteStreamServer {
+func NewByteStreamServer(blobAccess blobstore.BlobAccess) bytestream.ByteStreamServer {
 	return &byteStreamServer{
 		blobAccess: blobAccess,
 	}

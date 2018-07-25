@@ -12,6 +12,8 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -95,9 +97,9 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	remoteexecution.RegisterActionCacheServer(s, blobstore.NewActionCacheServer(actionCache))
-	remoteexecution.RegisterContentAddressableStorageServer(s, blobstore.NewContentAddressableStorageServer(contentAddressableStorage))
-	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorage))
+	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(actionCache))
+	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorage))
+	bytestream.RegisterByteStreamServer(s, cas.NewByteStreamServer(contentAddressableStorage))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)
 	watcher.RegisterWatcherServer(s, buildQueue)
 	if err := s.Serve(sock); err != nil {

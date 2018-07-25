@@ -28,8 +28,8 @@ const (
 	pathStderr    = "/stderr"
 )
 
-func joinPathSafe(dir string, file string) (string, error) {
-	joined := path.Join(dir, file)
+func joinPathSafe(elem ...string) (string, error) {
+	joined := path.Join(elem...)
 	if joined != path.Clean(joined) {
 		return "", fmt.Errorf("Attempted to access non-clean path %s", joined)
 	}

@@ -8,13 +8,13 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/satori/go.uuid"
 
+	"golang.org/x/net/context"
+
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/genproto/googleapis/longrunning"
 	watcher "google.golang.org/genproto/googleapis/watcher/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"golang.org/x/net/context"
 )
 
 type synchronousBuildJob struct {

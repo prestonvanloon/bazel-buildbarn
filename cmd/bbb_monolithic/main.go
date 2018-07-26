@@ -106,6 +106,7 @@ func main() {
 	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorageBlobAccess))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)
 	watcher.RegisterWatcherServer(s, buildQueue)
+	grpc_prometheus.EnableHandlingTimeHistogram()
 	grpc_prometheus.Register(s)
 
 	sock, err := net.Listen("tcp", ":8980")

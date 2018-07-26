@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"google.golang.org/genproto/googleapis/bytestream"
@@ -95,17 +96,23 @@ func main() {
 		ac.NewBlobAccessActionCache(
 			blobstore.NewMetricsBlobAccess(actionCacheBlobAccess, "ac_cached_build_queue")))
 
-	sock, err := net.Listen("tcp", ":8980")
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
+	// RPC server.
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	)
 	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(ac.NewBlobAccessActionCache(actionCacheBlobAccess)))
 	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorageBlobAccess))
 	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorageBlobAccess))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)
 	watcher.RegisterWatcherServer(s, buildQueue)
+	grpc_prometheus.Register(s)
+
+	sock, err := net.Listen("tcp", ":8980")
+	if err != nil {
+		log.Fatal("Failed to create listening socket: ", err)
+	}
 	if err := s.Serve(sock); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatal("Failed to serve RPC server: ", err)
 	}
 }

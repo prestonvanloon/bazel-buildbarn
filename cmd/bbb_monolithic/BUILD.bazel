@@ -29,7 +29,7 @@ go_binary(
     name = "bbb_monolithic",
     embed = [":go_default_library"],
     pure = "on",
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:private"],
 )
 
 container_image(
@@ -37,4 +37,5 @@ container_image(
     base = "//tools/debian_base",
     entrypoint = ["/bbb_monolithic"],
     files = [":bbb_monolithic"],
+    visibility = ["//visibility:public"],
 )

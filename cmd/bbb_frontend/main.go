@@ -9,6 +9,7 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,6 +21,7 @@ import (
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	watcher "google.golang.org/genproto/googleapis/watcher/v1"
 	"google.golang.org/grpc"
 )
 
@@ -30,6 +32,8 @@ func main() {
 		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
 		s3Region          = flag.String("s3-region", "", "Region of the object storage")
 		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
+
+		schedulerAddress = flag.String("scheduler-address", "", "Address at which the scheduler process is running")
 	)
 	flag.Parse()
 
@@ -63,12 +67,21 @@ func main() {
 		blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance),
 		"ac_s3")
 
+	// Backend capable of compiling.
+	// TODO(edsch): Pass in a list and demultiplex based on instance name.
+	scheduler, err := grpc.Dial(*schedulerAddress, grpc.WithInsecure())
+	if err != nil {
+		log.Fatal("Failed to create scheduler RPC client: ", err)
+	}
+	buildQueue := builder.NewGrpcClientConnBuildQueue(scheduler)
+
 	// RPC server.
 	s := grpc.NewServer()
 	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(ac.NewBlobAccessActionCache(actionCacheBlobAccess)))
 	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorageBlobAccess))
 	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorageBlobAccess))
-	// TODO(edsch): Forward Execution and Watch RPCs to a scheduler based on the instance name.
+	remoteexecution.RegisterExecutionServer(s, buildQueue)
+	watcher.RegisterWatcherServer(s, buildQueue)
 
 	sock, err := net.Listen("tcp", ":8980")
 	if err != nil {

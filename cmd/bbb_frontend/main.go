@@ -78,7 +78,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create scheduler RPC client: ", err)
 	}
-	buildQueue := builder.NewGrpcClientConnBuildQueue(scheduler)
+	buildQueue := builder.NewForwardingBuildQueue(scheduler)
 
 	// RPC server.
 	s := grpc.NewServer(

@@ -11,23 +11,23 @@ import (
 	"google.golang.org/grpc"
 )
 
-type grpcClientConnBuildQueue struct {
+type forwardingBuildQueue struct {
 	executionClient remoteexecution.ExecutionClient
 	watcherClient   watcher.WatcherClient
 }
 
-func NewGrpcClientConnBuildQueue(client *grpc.ClientConn) BuildQueue {
-	return &grpcClientConnBuildQueue{
+func NewForwardingBuildQueue(client *grpc.ClientConn) BuildQueue {
+	return &forwardingBuildQueue{
 		executionClient: remoteexecution.NewExecutionClient(client),
 		watcherClient:   watcher.NewWatcherClient(client),
 	}
 }
 
-func (bq *grpcClientConnBuildQueue) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
+func (bq *forwardingBuildQueue) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) (*longrunning.Operation, error) {
 	return bq.executionClient.Execute(ctx, request)
 }
 
-func (bq *grpcClientConnBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_WatchServer) error {
+func (bq *forwardingBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_WatchServer) error {
 	client, err := bq.watcherClient.Watch(out.Context(), in)
 	if err != nil {
 		return err

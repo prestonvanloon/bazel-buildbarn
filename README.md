@@ -21,7 +21,7 @@ data.
 
 Below is a diagram of what a typical Bazel Buildbarn deployment may look
 like. In this diagram, the arrows represent the direction in which
-network connections are made.
+network connections are established.
 
 <p align="center">
   <img src="https://github.com/EdSchouten/bazel-buildbarn/raw/master/doc/diagrams/bbb-overview.png" alt="Overview of a typical Bazel Buildbarn deployment"/>
@@ -31,7 +31,9 @@ One common use case for this implementation is to be run in Docker
 containers on Kubernetes. In such environments it is
 generally impossible to use [sandboxfs](https://github.com/bazelbuild/sandboxfs/),
 meaning `bbb_worker` uses basic UNIX credentials management (privilege
-separation) to provide a rudimentary form of sandboxing.
+separation) to provide a rudimentary form of sandboxing. The
+`bbb_worker` daemon runs as user `root`, whereas the build action is run
+as user `build`. Input files are only readable to the latter.
 
 Right now this codebase only provides a monolithic builder. A
 distributed version will still need to be implemented. It can be

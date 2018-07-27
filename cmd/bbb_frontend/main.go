@@ -67,6 +67,7 @@ func main() {
 	actionCacheBlobAccess := blobstore.NewMetricsBlobAccess(
 		blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance),
 		"ac_s3")
+	actionCache := ac.NewBlobAccessActionCache(actionCacheBlobAccess)
 
 	// Backend capable of compiling.
 	// TODO(edsch): Pass in a list and demultiplex based on instance name.
@@ -78,14 +79,16 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create scheduler RPC client: ", err)
 	}
-	buildQueue := builder.NewForwardingBuildQueue(scheduler)
+	buildQueue := builder.NewCachedBuildQueue(
+		builder.NewForwardingBuildQueue(scheduler),
+		actionCache)
 
 	// RPC server.
 	s := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 	)
-	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(ac.NewBlobAccessActionCache(actionCacheBlobAccess)))
+	remoteexecution.RegisterActionCacheServer(s, ac.NewActionCacheServer(actionCache))
 	remoteexecution.RegisterContentAddressableStorageServer(s, cas.NewContentAddressableStorageServer(contentAddressableStorageBlobAccess))
 	bytestream.RegisterByteStreamServer(s, blobstore.NewByteStreamServer(contentAddressableStorageBlobAccess))
 	remoteexecution.RegisterExecutionServer(s, buildQueue)

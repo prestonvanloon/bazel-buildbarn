@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"strings"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
@@ -26,16 +27,27 @@ import (
 	"google.golang.org/grpc"
 )
 
+type stringList []string
+
+func (i *stringList) String() string {
+	return "my string representation"
+}
+
+func (i *stringList) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 func main() {
+	var schedulersList stringList
 	var (
 		s3Endpoint        = flag.String("s3-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
 		s3AccessKeyId     = flag.String("s3-access-key-id", "", "Access key for the object storage")
 		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
 		s3Region          = flag.String("s3-region", "", "Region of the object storage")
 		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
-
-		schedulerAddress = flag.String("scheduler-address", "", "Address at which the scheduler process is running")
 	)
+	flag.Var(&schedulersList, "scheduler", "Backend capable of executing build actions. Example: debian9|hostname-of-debian9-scheduler:8980")
 	flag.Parse()
 
 	// Web server for metrics and profiling.
@@ -69,19 +81,24 @@ func main() {
 		"ac_s3")
 	actionCache := ac.NewBlobAccessActionCache(actionCacheBlobAccess)
 
-	// Backend capable of compiling.
-	// TODO(edsch): Pass in a list and demultiplex based on instance name.
-	scheduler, err := grpc.Dial(
-		*schedulerAddress,
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
-	if err != nil {
-		log.Fatal("Failed to create scheduler RPC client: ", err)
+	// Backends capable of compiling.
+	schedulers := map[string]builder.BuildQueue{}
+	for _, schedulerEntry := range schedulersList {
+		components := strings.SplitN(schedulerEntry, "|", 2)
+		if len(components) != 2 {
+			log.Fatal("Invalid scheduler entry: ", schedulerEntry)
+		}
+		scheduler, err := grpc.Dial(
+			components[1],
+			grpc.WithInsecure(),
+			grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+			grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
+		if err != nil {
+			log.Fatal("Failed to create scheduler RPC client: ", err)
+		}
+		schedulers[components[0]] = builder.NewForwardingBuildQueue(scheduler)
 	}
-	buildQueue := builder.NewCachedBuildQueue(
-		builder.NewForwardingBuildQueue(scheduler),
-		actionCache)
+	buildQueue := builder.NewCachedBuildQueue(builder.NewDemultiplexingBuildQueue(schedulers), actionCache)
 
 	// RPC server.
 	s := grpc.NewServer(

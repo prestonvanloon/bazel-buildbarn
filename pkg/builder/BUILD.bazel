@@ -7,6 +7,7 @@ go_library(
         "build_queue.go",
         "cached_build_queue.go",
         "caching_build_executor.go",
+        "demultiplexing_build_queue.go",
         "forwarding_build_queue.go",
         "local_build_executor.go",
         "synchronous_build_queue.go",

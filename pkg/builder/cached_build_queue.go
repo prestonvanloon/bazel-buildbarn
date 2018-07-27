@@ -6,6 +6,7 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
@@ -15,6 +16,22 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+var (
+	cachedBuildQueueOperationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "buildbarn",
+			Subsystem: "builder",
+			Name:      "cached_build_queue_operations_total",
+			Help:      "Total number of operations against the cached build queue.",
+		},
+		[]string{"result"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(cachedBuildQueueOperationsTotal)
+}
 
 type cachedBuildQueue struct {
 	BuildQueue
@@ -34,11 +51,13 @@ func (bq *cachedBuildQueue) Execute(ctx context.Context, request *remoteexecutio
 	if !request.SkipCacheLookup {
 		digest, err := util.DigestFromMessage(request.Action)
 		if err != nil {
+			cachedBuildQueueOperationsTotal.WithLabelValues("bad_digest").Inc()
 			return nil, err
 		}
 		result, err := bq.actionCache.GetActionResult(ctx, request.InstanceName, digest)
 		if err == nil {
 			// Found action in action cache. Return it immediately.
+			cachedBuildQueueOperationsTotal.WithLabelValues("hit").Inc()
 			metadata, err := ptypes.MarshalAny(&remoteexecution.ExecuteOperationMetadata{
 				Stage:        remoteexecution.ExecuteOperationMetadata_COMPLETED,
 				ActionDigest: digest,
@@ -57,8 +76,10 @@ func (bq *cachedBuildQueue) Execute(ctx context.Context, request *remoteexecutio
 				Result:   &longrunning.Operation_Response{Response: response},
 			}, nil
 		} else if status.Code(err) != codes.NotFound {
+			cachedBuildQueueOperationsTotal.WithLabelValues("failure").Inc()
 			return nil, err
 		}
 	}
+	cachedBuildQueueOperationsTotal.WithLabelValues("miss").Inc()
 	return bq.BuildQueue.Execute(ctx, request)
 }

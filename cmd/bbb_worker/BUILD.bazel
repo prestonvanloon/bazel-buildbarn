@@ -1,0 +1,41 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/EdSchouten/bazel-buildbarn/cmd/bbb_worker",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/ac:go_default_library",
+        "//pkg/blobstore:go_default_library",
+        "//pkg/builder:go_default_library",
+        "//pkg/cas:go_default_library",
+        "//pkg/proto:go_default_library",
+        "//pkg/util:go_default_library",
+        "@com_github_aws_aws_sdk_go//aws:go_default_library",
+        "@com_github_aws_aws_sdk_go//aws/credentials:go_default_library",
+        "@com_github_aws_aws_sdk_go//aws/session:go_default_library",
+        "@com_github_aws_aws_sdk_go//service/s3:go_default_library",
+        "@com_github_aws_aws_sdk_go//service/s3/s3manager:go_default_library",
+        "@com_github_grpc_ecosystem_go_grpc_prometheus//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_x_net//context:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "bbb_worker",
+    embed = [":go_default_library"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+container_image(
+    name = "bbb_worker_container",
+    base = "//tools/debian_base",
+    entrypoint = ["/bbb_worker"],
+    files = [":bbb_worker"],
+    visibility = ["//visibility:public"],
+)

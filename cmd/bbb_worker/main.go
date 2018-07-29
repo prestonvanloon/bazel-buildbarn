@@ -108,7 +108,7 @@ func main() {
 }
 
 func subscribeAndExecute(schedulerClient scheduler.SchedulerClient, buildExecutor builder.BuildExecutor) error {
-	stream, err := schedulerClient.Subscribe(context.Background())
+	stream, err := schedulerClient.GetWork(context.Background())
 	if err != nil {
 		return err
 	}

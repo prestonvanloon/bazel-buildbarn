@@ -25,8 +25,7 @@ var (
 			Name:      "cached_build_queue_operations_total",
 			Help:      "Total number of operations against the cached build queue.",
 		},
-		[]string{"result"},
-	)
+		[]string{"result"})
 )
 
 func init() {

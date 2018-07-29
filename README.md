@@ -35,16 +35,16 @@ separation) to provide a rudimentary form of sandboxing. The
 `bbb_worker` daemon runs as user `root`, whereas the build action is run
 as user `build`. Input files are only readable to the latter.
 
-Right now this codebase only provides a monolithic builder. A
-distributed version will still need to be implemented. It can be
-built and launched as follows:
+## Setting up Bazel Buildbarn
 
-    bazel run //cmd/bbb_monolithic:bbb_monolithic_container
-    docker run -p 8980:8980 bazel/cmd/bbb_monolithic:bbb_monolithic_container
+TODO(edsch): Provide example Kubernetes configuration files.
 
-Bazel can make use of it by invoking it as follows:
+## Using Bazel Buildbarn
+
+Bazel can make use of Bazel Buildbarn by invoking it as follows:
 
     bazel build \
-        --spawn_strategy=remote --genrule_strategy=remote \
-        --strategy=Javac=remote --strategy=Closure=remote \
-        --remote_executor=localhost:8980 --experimental_strict_action_env //...
+        --experimental_strict_action_env --genrule_strategy=remote \
+        --remote_executor=...:8980 --spawn_strategy=remote \
+        --strategy=Closure=remote --strategy=Javac=remote \
+        //...

@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path"
 	"syscall"
+	"time"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/cas"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"golang.org/x/net/context"
 
@@ -23,6 +26,22 @@ const (
 	pathStdout    = "/stdout"
 	pathStderr    = "/stderr"
 )
+
+var (
+	localBuildExecutorDurationSeconds = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "buildbarn",
+			Subsystem: "builder",
+			Name:      "local_build_executor_duration_seconds",
+			Help:      "Amount of time spent per build execution step, in seconds.",
+			Buckets:   prometheus.ExponentialBuckets(0.001, math.Pow(10.0, 1.0/3.0), 6*3+1),
+		},
+		[]string{"step"})
+)
+
+func init() {
+	prometheus.MustRegister(localBuildExecutorDurationSeconds)
+}
 
 func joinPathSafe(elem ...string) (string, error) {
 	joined := path.Join(elem...)
@@ -201,10 +220,15 @@ func (be *localBuildExecutor) uploadTree(ctx context.Context, instance string, p
 }
 
 func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecution.ExecuteRequest) *remoteexecution.ExecuteResponse {
+	timeStart := time.Now()
+
 	// Set up inputs.
 	if err := be.prepareFilesystem(ctx, request); err != nil {
 		return convertErrorToExecuteResponse(err)
 	}
+	timeAfterPrepareFilesytem := time.Now()
+	localBuildExecutorDurationSeconds.WithLabelValues("prepare_filesystem").Observe(
+		timeAfterPrepareFilesytem.Sub(timeStart).Seconds())
 
 	// Invoke command.
 	exitCode := 0
@@ -216,6 +240,9 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 			return convertErrorToExecuteResponse(err)
 		}
 	}
+	timeAfterRunCommand := time.Now()
+	localBuildExecutorDurationSeconds.WithLabelValues("run_command").Observe(
+		timeAfterRunCommand.Sub(timeAfterPrepareFilesytem).Seconds())
 
 	// Upload command output.
 	stdoutDigest, _, err := be.contentAddressableStorage.PutFile(ctx, request.InstanceName, pathStdout)
@@ -272,5 +299,9 @@ func (be *localBuildExecutor) Execute(ctx context.Context, request *remoteexecut
 			})
 		}
 	}
+	timeAfterUpload := time.Now()
+	localBuildExecutorDurationSeconds.WithLabelValues("upload_output").Observe(
+		timeAfterUpload.Sub(timeAfterRunCommand).Seconds())
+
 	return response
 }

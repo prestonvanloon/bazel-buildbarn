@@ -23,9 +23,9 @@ func NewContentAddressableStorageServer(contentAddressableStorage blobstore.Blob
 }
 
 func (s *contentAddressableStorageServer) FindMissingBlobs(ctx context.Context, in *remoteexecution.FindMissingBlobsRequest) (*remoteexecution.FindMissingBlobsResponse, error) {
-	log.Print("Attempted to call ContentAddressableStorage.FindMissingBlobs")
 	digests, err := s.contentAddressableStorage.FindMissing(ctx, in.InstanceName, in.BlobDigests)
 	if err != nil {
+		log.Print("ContentAddressableStorage.FindMissingBlobs failed: ", err)
 		return nil, err
 	}
 	return &remoteexecution.FindMissingBlobsResponse{

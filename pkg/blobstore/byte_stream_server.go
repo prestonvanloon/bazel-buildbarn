@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	readChunkSize = 4096
+	readChunkSize = 1 << 16
 )
 
 // parseResourceNameRead parses resource name strings in one of the following two forms:

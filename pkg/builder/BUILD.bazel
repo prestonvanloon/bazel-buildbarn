@@ -10,7 +10,6 @@ go_library(
         "demultiplexing_build_queue.go",
         "forwarding_build_queue.go",
         "local_build_executor.go",
-        "synchronous_build_queue.go",
         "worker_build_queue.go",
     ],
     importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/builder",

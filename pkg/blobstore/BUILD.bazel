@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "blob_access.go",
         "byte_stream_server.go",
-        "memory_blob_access.go",
         "merkle_blob_access.go",
         "metrics_blob_access.go",
         "s3_blob_access.go",

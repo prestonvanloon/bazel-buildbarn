@@ -41,5 +41,5 @@ func (ac *blobAccessActionCache) PutActionResult(ctx context.Context, instance s
 	if err != nil {
 		return err
 	}
-	return ac.blobAccess.Put(ctx, instance, digest, bytes.NewBuffer(data))
+	return ac.blobAccess.Put(ctx, instance, digest, ioutil.NopCloser(bytes.NewBuffer(data)))
 }

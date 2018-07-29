@@ -44,21 +44,22 @@ func (ba *merkleBlobAccess) Get(ctx context.Context, instance string, digest *re
 		return &errorReader{err: err}
 	}
 	return &checksumValidatingReader{
-		reader:   ba.blobAccess.Get(ctx, instance, digest),
-		checksum: checksum,
-		sizeLeft: size,
+		ReadCloser: ba.blobAccess.Get(ctx, instance, digest),
+		checksum:   checksum,
+		sizeLeft:   size,
 	}
 }
 
-func (ba *merkleBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.Reader) error {
+func (ba *merkleBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
 	checksum, size, err := extractDigest(digest)
 	if err != nil {
+		r.Close()
 		return err
 	}
 	return ba.blobAccess.Put(ctx, instance, digest, &checksumValidatingReader{
-		reader:   r,
-		checksum: checksum,
-		sizeLeft: size,
+		ReadCloser: r,
+		checksum:   checksum,
+		sizeLeft:   size,
 	})
 }
 
@@ -73,13 +74,14 @@ func (ba *merkleBlobAccess) FindMissing(ctx context.Context, instance string, di
 }
 
 type checksumValidatingReader struct {
-	reader   io.Reader
+	io.ReadCloser
+
 	checksum [sha256.Size]byte
 	sizeLeft uint64
 }
 
 func (r *checksumValidatingReader) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
+	n, err := r.ReadCloser.Read(p)
 	nLen := uint64(n)
 	if nLen > r.sizeLeft {
 		return 0, fmt.Errorf("Blob is %d bytes longer than expected", nLen-r.sizeLeft)
@@ -94,8 +96,4 @@ func (r *checksumValidatingReader) Read(p []byte) (int, error) {
 		// TODO(edsch): Validate checksum.
 	}
 	return n, err
-}
-
-func (r *checksumValidatingReader) Close() error {
-	return r.reader.(io.ReadCloser).Close()
 }

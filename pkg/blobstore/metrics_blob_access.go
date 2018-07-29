@@ -54,7 +54,7 @@ func (ba *metricsBlobAccess) Get(ctx context.Context, instance string, digest *r
 	return ba.blobAccess.Get(ctx, instance, digest)
 }
 
-func (ba *metricsBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.Reader) error {
+func (ba *metricsBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
 	blobAccessOperationsStartedTotal.WithLabelValues(ba.name, "Put").Inc()
 	defer blobAccessOperationsCompletedTotal.WithLabelValues(ba.name, "Put").Inc()
 	return ba.blobAccess.Put(ctx, instance, digest, r)

@@ -183,13 +183,13 @@ func (bq *WorkerBuildQueue) GetWork(stream scheduler.Scheduler_GetWorkServer) er
 		job := bq.jobsPending[0]
 		bq.jobsPending = bq.jobsPending[1:]
 		job.stage = remoteexecution.ExecuteOperationMetadata_EXECUTING
-		bq.jobsLock.Unlock()
 
 		// Perform execution of the job.
+		bq.jobsLock.Unlock()
 		executeResponse := executeOnWorker(stream, &job.executeRequest)
+		bq.jobsLock.Lock()
 
 		// Mark completion.
-		bq.jobsLock.Lock()
 		delete(bq.jobsDeduplicationMap, job.deduplicationKey)
 		job.stage = remoteexecution.ExecuteOperationMetadata_COMPLETED
 		job.executeResponse = executeResponse

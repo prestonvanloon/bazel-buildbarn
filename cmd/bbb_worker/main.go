@@ -119,7 +119,10 @@ func subscribeAndExecute(schedulerClient scheduler.SchedulerClient, buildExecuto
 		if err != nil {
 			return err
 		}
-		if err := stream.Send(buildExecutor.Execute(stream.Context(), request)); err != nil {
+		log.Print("Request: ", request)
+		response := buildExecutor.Execute(stream.Context(), request)
+		log.Print("Response: ", response)
+		if err := stream.Send(response); err != nil {
 			return err
 		}
 	}

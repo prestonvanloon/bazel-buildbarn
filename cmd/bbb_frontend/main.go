@@ -47,7 +47,7 @@ func main() {
 		s3Region          = flag.String("s3-region", "", "Region of the object storage")
 		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
 	)
-	flag.Var(&schedulersList, "scheduler", "Backend capable of executing build actions. Example: debian9|hostname-of-debian9-scheduler:8980")
+	flag.Var(&schedulersList, "scheduler", "Backend capable of executing build actions. Example: debian9|hostname-of-debian9-scheduler:8981")
 	flag.Parse()
 
 	// Web server for metrics and profiling.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/builder"
 	"github.com/EdSchouten/bazel-buildbarn/pkg/proto/scheduler"
+	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -23,7 +24,7 @@ func main() {
 		log.Fatal(http.ListenAndServe(":80", nil))
 	}()
 
-	buildQueue := builder.NewWorkerBuildQueue()
+	buildQueue := builder.NewWorkerBuildQueue(util.KeyDigestWithInstance, 16)
 
 	// RPC server.
 	s := grpc.NewServer(

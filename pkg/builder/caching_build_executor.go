@@ -27,10 +27,10 @@ func (be *cachingBuildExecutor) Execute(ctx context.Context, request *remoteexec
 	if !request.Action.DoNotCache && status.ErrorProto(response.Status) == nil && response.Result.ExitCode == 0 {
 		digest, err := util.DigestFromMessage(request.Action)
 		if err != nil {
-			return convertErrorToExecuteResponse(err)
+			return ConvertErrorToExecuteResponse(err)
 		}
 		if err := be.actionCache.PutActionResult(ctx, request.InstanceName, digest, response.Result); err != nil {
-			return convertErrorToExecuteResponse(err)
+			return ConvertErrorToExecuteResponse(err)
 		}
 	}
 	return response

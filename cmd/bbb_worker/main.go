@@ -62,12 +62,14 @@ func main() {
 	uploader.Concurrency = 1
 
 	// Storage of content and actions.
-	contentAddressableStorageBlobAccess := blobstore.NewMetricsBlobAccess(
-		blobstore.NewMerkleBlobAccess(
-			blobstore.NewMetricsBlobAccess(
-				blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance),
-				"cas_s3")),
-		"cas_merkle")
+	batchWritingBlobAccess := blobstore.NewBatchWritingBlobAccess(
+		blobstore.NewMetricsBlobAccess(
+			blobstore.NewMerkleBlobAccess(
+				blobstore.NewMetricsBlobAccess(
+					blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance),
+					"cas_s3")),
+			"cas_merkle"))
+	contentAddressableStorageBlobAccess := blobstore.NewMetricsBlobAccess(batchWritingBlobAccess, "cas_batch_writer")
 	actionCacheBlobAccess := blobstore.NewMetricsBlobAccess(
 		blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance),
 		"ac_s3")
@@ -101,18 +103,19 @@ func main() {
 
 	// Repeatedly ask the scheduler for work.
 	for {
-		err := subscribeAndExecute(schedulerClient, buildExecutor)
+		err := subscribeAndExecute(schedulerClient, buildExecutor, batchWritingBlobAccess)
 		log.Print("Failed to subscribe and execute: ", err)
 		time.Sleep(time.Second * 3)
 	}
 }
 
-func subscribeAndExecute(schedulerClient scheduler.SchedulerClient, buildExecutor builder.BuildExecutor) error {
+func subscribeAndExecute(schedulerClient scheduler.SchedulerClient, buildExecutor builder.BuildExecutor, batchWritingBlobAccess *blobstore.BatchWritingBlobAccess) error {
 	stream, err := schedulerClient.GetWork(context.Background())
 	if err != nil {
 		return err
 	}
 	defer stream.CloseSend()
+	ctx := stream.Context()
 
 	for {
 		request, err := stream.Recv()
@@ -120,7 +123,10 @@ func subscribeAndExecute(schedulerClient scheduler.SchedulerClient, buildExecuto
 			return err
 		}
 		log.Print("Request: ", request)
-		response := buildExecutor.Execute(stream.Context(), request)
+		response := buildExecutor.Execute(ctx, request)
+		if err := batchWritingBlobAccess.Flush(ctx); err != nil {
+			response = builder.ConvertErrorToExecuteResponse(err)
+		}
 		log.Print("Response: ", response)
 		if err := stream.Send(response); err != nil {
 			return err

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func convertErrorToExecuteResponse(err error) *remoteexecution.ExecuteResponse {
+func ConvertErrorToExecuteResponse(err error) *remoteexecution.ExecuteResponse {
 	return &remoteexecution.ExecuteResponse{Status: status.Convert(err).Proto()}
 }
 

@@ -154,11 +154,11 @@ func (bq *WorkerBuildQueue) Watch(in *watcher.Request, out watcher.Watcher_Watch
 func executeOnWorker(stream scheduler.Scheduler_GetWorkServer, request *remoteexecution.ExecuteRequest) *remoteexecution.ExecuteResponse {
 	// TODO(edsch): Any way we can set a timeout here?
 	if err := stream.Send(request); err != nil {
-		return convertErrorToExecuteResponse(err)
+		return ConvertErrorToExecuteResponse(err)
 	}
 	response, err := stream.Recv()
 	if err != nil {
-		return convertErrorToExecuteResponse(err)
+		return ConvertErrorToExecuteResponse(err)
 	}
 	return response
 }

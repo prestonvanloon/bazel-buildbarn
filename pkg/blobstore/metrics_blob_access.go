@@ -2,6 +2,8 @@ package blobstore
 
 import (
 	"io"
+	"math"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -18,22 +20,21 @@ var (
 			Name:      "blob_access_operations_started_total",
 			Help:      "Total number of operations started on blob access objects.",
 		},
-		[]string{"name", "operation"},
-	)
-	blobAccessOperationsCompletedTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+		[]string{"name", "operation"})
+	blobAccessOperationsDurationSeconds = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
 			Namespace: "buildbarn",
 			Subsystem: "blobstore",
-			Name:      "blob_access_operations_completed_total",
-			Help:      "Total number of operations completed on blob access objects.",
+			Name:      "blob_access_operations_duration_seconds",
+			Help:      "Amount of time spent per operation on blob access objects, in seconds.",
+			Buckets:   prometheus.ExponentialBuckets(0.001, math.Pow(10.0, 1.0/3.0), 6*3+1),
 		},
-		[]string{"name", "operation"},
-	)
+		[]string{"name", "operation"})
 )
 
 func init() {
 	prometheus.MustRegister(blobAccessOperationsStartedTotal)
-	prometheus.MustRegister(blobAccessOperationsCompletedTotal)
+	prometheus.MustRegister(blobAccessOperationsDurationSeconds)
 }
 
 type metricsBlobAccess struct {
@@ -50,18 +51,24 @@ func NewMetricsBlobAccess(blobAccess BlobAccess, name string) BlobAccess {
 
 func (ba *metricsBlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
 	blobAccessOperationsStartedTotal.WithLabelValues(ba.name, "Get").Inc()
-	defer blobAccessOperationsCompletedTotal.WithLabelValues(ba.name, "Get").Inc()
-	return ba.blobAccess.Get(ctx, instance, digest)
+	timeStart := time.Now()
+	r := ba.blobAccess.Get(ctx, instance, digest)
+	blobAccessOperationsDurationSeconds.WithLabelValues(ba.name, "Get").Observe(time.Now().Sub(timeStart).Seconds())
+	return r
 }
 
 func (ba *metricsBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
 	blobAccessOperationsStartedTotal.WithLabelValues(ba.name, "Put").Inc()
-	defer blobAccessOperationsCompletedTotal.WithLabelValues(ba.name, "Put").Inc()
-	return ba.blobAccess.Put(ctx, instance, digest, r)
+	timeStart := time.Now()
+	err := ba.blobAccess.Put(ctx, instance, digest, r)
+	blobAccessOperationsDurationSeconds.WithLabelValues(ba.name, "Put").Observe(time.Now().Sub(timeStart).Seconds())
+	return err
 }
 
 func (ba *metricsBlobAccess) FindMissing(ctx context.Context, instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
 	blobAccessOperationsStartedTotal.WithLabelValues(ba.name, "FindMissing").Inc()
-	defer blobAccessOperationsCompletedTotal.WithLabelValues(ba.name, "FindMissing").Inc()
-	return ba.blobAccess.FindMissing(ctx, instance, digests)
+	timeStart := time.Now()
+	digests, err := ba.blobAccess.FindMissing(ctx, instance, digests)
+	blobAccessOperationsDurationSeconds.WithLabelValues(ba.name, "FindMissing").Observe(time.Now().Sub(timeStart).Seconds())
+	return digests, err
 }

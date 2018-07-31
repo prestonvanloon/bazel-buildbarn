@@ -3,7 +3,6 @@ package blobstore
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"io/ioutil"
 
@@ -62,6 +61,33 @@ func (ba *redisBlobAccess) Put(ctx context.Context, instance string, digest *rem
 }
 
 func (ba *redisBlobAccess) FindMissing(ctx context.Context, instance string, digests []*remoteexecution.Digest) ([]*remoteexecution.Digest, error) {
-	// TODO(edsch): Implement this.
-	return nil, errors.New("Not implemented")
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(digests) == 0 {
+		return nil, nil
+	}
+
+	// Execute "EXISTS" requests all in a single pipeline.
+	pipeline := ba.redisClient.Pipeline()
+	var cmds []*redis.IntCmd
+	for _, digest := range digests {
+		key, err := ba.blobKeyer(instance, digest)
+		if err != nil {
+			return nil, err
+		}
+		cmds = append(cmds, pipeline.Exists(key))
+	}
+	_, err := pipeline.Exec()
+	if err != nil {
+		return nil, err
+	}
+
+	var missing []*remoteexecution.Digest
+	for i, cmd := range cmds {
+		if cmd.Val() == 0 {
+			missing = append(missing, digests[i])
+		}
+	}
+	return missing, nil
 }

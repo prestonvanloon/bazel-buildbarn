@@ -30,7 +30,7 @@ func (ba *sizeDistinguishingBlobAccess) Get(ctx context.Context, instance string
 
 func (ba *sizeDistinguishingBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
 	if digest.SizeBytes <= ba.cutoffSizeBytes {
-		return ba.largeBlobAccess.Put(ctx, instance, digest, r)
+		return ba.smallBlobAccess.Put(ctx, instance, digest, r)
 	}
 	return ba.largeBlobAccess.Put(ctx, instance, digest, r)
 }

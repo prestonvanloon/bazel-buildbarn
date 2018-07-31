@@ -121,7 +121,7 @@ func main() {
 		}
 		schedulers[components[0]] = builder.NewForwardingBuildQueue(scheduler)
 	}
-	buildQueue := builder.NewCachedBuildQueue(builder.NewDemultiplexingBuildQueue(schedulers), actionCache)
+	buildQueue := builder.NewDemultiplexingBuildQueue(schedulers)
 
 	// RPC server.
 	s := grpc.NewServer(

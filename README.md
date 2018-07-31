@@ -16,8 +16,12 @@ components:
 The `bbb_frontend` and `bbb_worker` services can be replicated easily.
 It is also possible to start multiple `bbb_scheduler` processes if
 multiple build queues are desired (e.g., supporting multiple build
-operating systems). These processes may use S3-like buckets to store
-data.
+operating systems).
+
+These processes use Redis to store most of their data (in terms of
+object count). As Redis is not well suited for storing large elements,
+an S3 bucket is used to hold any Content Addressable Storage objects
+exceeding 1 MiB in size.
 
 Below is a diagram of what a typical Bazel Buildbarn deployment may look
 like. In this diagram, the arrows represent the direction in which

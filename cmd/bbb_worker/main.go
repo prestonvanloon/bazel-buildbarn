@@ -74,7 +74,7 @@ func main() {
 								Addr: *redisEndpoint,
 								DB:   0,
 							}),
-						util.KeyDigestWithInstance),
+						util.KeyDigestWithoutInstance),
 					"cas_redis"),
 				blobstore.NewMetricsBlobAccess(
 					blobstore.NewS3BlobAccess(

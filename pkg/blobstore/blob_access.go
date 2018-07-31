@@ -1,9 +1,8 @@
 package blobstore
 
 import (
+	"context"
 	"io"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )

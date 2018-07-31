@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/status"

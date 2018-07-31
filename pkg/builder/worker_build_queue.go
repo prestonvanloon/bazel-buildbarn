@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	"log"
 	"sync"
 
@@ -8,8 +9,6 @@ import (
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/satori/go.uuid"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/genproto/googleapis/longrunning"

@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	"log"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/ac"
@@ -8,8 +9,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/satori/go.uuid"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/genproto/googleapis/longrunning"

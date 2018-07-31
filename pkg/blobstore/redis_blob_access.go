@@ -2,14 +2,13 @@ package blobstore
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
 	"github.com/go-redis/redis"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"

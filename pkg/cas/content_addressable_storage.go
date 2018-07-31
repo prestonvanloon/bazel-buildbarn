@@ -1,7 +1,7 @@
 package cas
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )

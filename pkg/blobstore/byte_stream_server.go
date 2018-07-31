@@ -1,14 +1,13 @@
 package blobstore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"google.golang.org/genproto/googleapis/bytestream"
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"

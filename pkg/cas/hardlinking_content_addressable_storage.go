@@ -1,13 +1,12 @@
 package cas
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"path"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/util"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )

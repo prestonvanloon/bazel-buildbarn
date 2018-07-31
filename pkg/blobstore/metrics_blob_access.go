@@ -1,13 +1,12 @@
 package blobstore
 
 import (
+	"context"
 	"io"
 	"math"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )

@@ -1,11 +1,10 @@
 package cas
 
 import (
+	"context"
 	"log"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"

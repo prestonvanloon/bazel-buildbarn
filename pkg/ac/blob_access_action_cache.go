@@ -2,12 +2,11 @@ package ac
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 
 	"github.com/EdSchouten/bazel-buildbarn/pkg/blobstore"
 	"github.com/golang/protobuf/proto"
-
-	"golang.org/x/net/context"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 )

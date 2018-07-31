@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/go-redis/redis"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -41,6 +42,7 @@ func (i *stringList) Set(value string) error {
 func main() {
 	var schedulersList stringList
 	var (
+		redisEndpoint     = flag.String("redis-endpoint", "", "Redis endpoint for the Content Addressable Storage and the Action Cache")
 		s3Endpoint        = flag.String("s3-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
 		s3AccessKeyId     = flag.String("s3-access-key-id", "", "Access key for the object storage")
 		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
@@ -77,8 +79,14 @@ func main() {
 				"cas_s3")),
 		"cas_merkle")
 	actionCacheBlobAccess := blobstore.NewMetricsBlobAccess(
-		blobstore.NewS3BlobAccess(s3, uploader, aws.String("action-cache"), util.KeyDigestWithInstance),
-		"ac_s3")
+		blobstore.NewRedisBlobAccess(
+			redis.NewClient(
+				&redis.Options{
+					Addr: *redisEndpoint,
+					DB:   1,
+				}),
+			util.KeyDigestWithInstance),
+		"ac_redis")
 	actionCache := ac.NewBlobAccessActionCache(actionCacheBlobAccess)
 
 	// Backends capable of compiling.

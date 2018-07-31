@@ -348,3 +348,9 @@ go_repository(
     commit = "c225b8c3b01faf2899099b768856a9e916e5087b",
     importpath = "github.com/grpc-ecosystem/go-grpc-prometheus",
 )
+
+go_repository(
+    name = "com_github_go_redis_redis",
+    commit = "480db94d33e6088e08d628833b6c0705451d24bb",
+    importpath = "github.com/go-redis/redis",
+)

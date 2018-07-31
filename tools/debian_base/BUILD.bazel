@@ -10,6 +10,7 @@ container_image(
         "@debian_deb_cpp_6//file",
         "@debian_deb_cpp//file",
         "@debian_deb_dash//file",
+        "@debian_deb_debianutils//file",
         "@debian_deb_findutils//file",
         "@debian_deb_gcc_6//file",
         "@debian_deb_gcc//file",

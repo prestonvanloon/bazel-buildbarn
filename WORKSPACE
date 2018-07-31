@@ -56,6 +56,12 @@ http_file(
 )
 
 http_file(
+    name = "debian_deb_debianutils",
+    sha256 = "11cdc154dc6555e093725ddcb2f6f38882f7aa7090170c07216483cc3a5964ae",
+    url = "http://ftp.nl.debian.org/debian/pool/main/d/debianutils/debianutils_4.8.1.1_amd64.deb",
+)
+
+http_file(
     name = "debian_deb_findutils",
     sha256 = "b6e241e619e985455e6a7638807a28929b15efecf0158b207ff3ae0fc964f75a",
     url = "http://ftp.nl.debian.org/debian/pool/main/f/findutils/findutils_4.6.0+git+20161106-2_amd64.deb",

@@ -74,9 +74,24 @@ func main() {
 	// Storage of content and actions.
 	contentAddressableStorageBlobAccess := blobstore.NewMetricsBlobAccess(
 		blobstore.NewMerkleBlobAccess(
-			blobstore.NewMetricsBlobAccess(
-				blobstore.NewS3BlobAccess(s3, uploader, aws.String("content-addressable-storage"), util.KeyDigestWithoutInstance),
-				"cas_s3")),
+			blobstore.NewSizeDistinguishingBlobAccess(
+				blobstore.NewMetricsBlobAccess(
+					blobstore.NewRedisBlobAccess(
+						redis.NewClient(
+							&redis.Options{
+								Addr: *redisEndpoint,
+								DB:   0,
+							}),
+						util.KeyDigestWithInstance),
+					"cas_redis"),
+				blobstore.NewMetricsBlobAccess(
+					blobstore.NewS3BlobAccess(
+						s3,
+						uploader,
+						aws.String("content-addressable-storage"),
+						util.KeyDigestWithoutInstance),
+					"cas_s3"),
+				1<<20)),
 		"cas_merkle")
 	actionCacheBlobAccess := blobstore.NewMetricsBlobAccess(
 		blobstore.NewRedisBlobAccess(

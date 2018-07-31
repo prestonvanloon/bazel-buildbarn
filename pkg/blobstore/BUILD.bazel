@@ -9,6 +9,7 @@ go_library(
         "metrics_blob_access.go",
         "redis_blob_access.go",
         "s3_blob_access.go",
+        "size_distinguishing_blob_access.go",
     ],
     importpath = "github.com/EdSchouten/bazel-buildbarn/pkg/blobstore",
     visibility = ["//visibility:public"],

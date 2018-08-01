@@ -48,7 +48,7 @@ TODO(edsch): Provide example Kubernetes configuration files.
 Bazel can make use of Bazel Buildbarn by invoking it as follows:
 
     bazel build \
-        --experimental_strict_action_env --genrule_strategy=remote \
+        --cpu=k8 --experimental_strict_action_env --genrule_strategy=remote \
         --remote_executor=...:8980 --spawn_strategy=remote \
         --strategy=Closure=remote --strategy=Javac=remote \
         //...

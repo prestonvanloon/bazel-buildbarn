@@ -362,3 +362,45 @@ go_repository(
     commit = "480db94d33e6088e08d628833b6c0705451d24bb",
     importpath = "github.com/go-redis/redis",
 )
+
+go_repository(
+    name = "com_google_cloud_go",
+    commit = "64a2037ec6be8a4b0c1d1f706ed35b428b989239",
+    importpath = "cloud.google.com/go",
+)
+
+go_repository(
+    name = "com_github_googleapis_gax_go",
+    commit = "317e0006254c44a0ac427cc52a0e083ff0b9622f",
+    importpath = "github.com/googleapis/gax-go",
+)
+
+go_repository(
+    name = "org_golang_google_api",
+    commit = "d089d6ac97131b2ee652f2fe736865338659a668",
+    importpath = "google.golang.org/api",
+)
+
+go_repository(
+    name = "io_opencensus_go",
+    commit = "e262766cd0d230a1bb7c37281e345e465f19b41b",
+    importpath = "go.opencensus.io",
+)
+
+go_repository(
+    name = "io_opencensus_go_contrib_exporter_stackdriver",
+    commit = "37aa2801fbf0205003e15636096ebf0373510288",
+    importpath = "contrib.go.opencensus.io/exporter/stackdriver",
+)
+
+go_repository(
+    name = "org_golang_google_appengine",
+    commit = "b1f26356af11148e710935ed1ac8a7f5702c7612",
+    importpath = "google.golang.org/appengine",
+)
+
+go_repository(
+    name = "org_golang_x_oauth2",
+    commit = "3d292e4d0cdc3a0113e6d207bb137145ef1de42f",
+    importpath = "golang.org/x/oauth2",
+)

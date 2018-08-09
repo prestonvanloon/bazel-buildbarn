@@ -43,14 +43,21 @@ func main() {
 	var schedulersList stringList
 	var (
 		redisEndpoint     = flag.String("redis-endpoint", "", "Redis endpoint for the Content Addressable Storage and the Action Cache")
+		
+		// Amazon Web Services - S3
 		s3Endpoint        = flag.String("s3-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
 		s3AccessKeyId     = flag.String("s3-access-key-id", "", "Access key for the object storage")
 		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
 		s3Region          = flag.String("s3-region", "", "Region of the object storage")
 		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
+		
+		// Google Cloud Platform - GCS 
+		gsBucketName  = flag.String("gs-bucket-name", "", "The Google storage bucket name for the Content Addressable Storage and Action Cache of large objects")
 	)
 	flag.Var(&schedulersList, "scheduler", "Backend capable of executing build actions. Example: debian9|hostname-of-debian9-scheduler:8981")
 	flag.Parse()
+
+	_ = gsBucketName // TODO
 
 	// Web server for metrics and profiling.
 	http.Handle("/metrics", promhttp.Handler())

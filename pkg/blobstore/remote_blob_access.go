@@ -25,7 +25,7 @@ func NewRemoteBlobAccess(address, prefix string) BlobAccess {
 func (ba *remoteBlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
 	resp, err := ctxhttp.Get(ctx, http.DefaultClient, fmt.Sprintf("%s/%s/%s", ba.address, ba.prefix, digest.GetHash()))
 	if err != nil {
-		// todo
+		return &errorReader{err: err}
 	}
 
 	return resp.Body

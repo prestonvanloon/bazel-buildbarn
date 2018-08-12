@@ -58,7 +58,7 @@ func main() {
 	// Web server for metrics and profiling.
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Fatal(http.ListenAndServe(":80", nil))
 	}()
 
 	// Create an S3 client. Set the uploader concurrency to 1 to drastically reduce memory usage.

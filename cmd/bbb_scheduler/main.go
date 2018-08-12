@@ -21,7 +21,7 @@ func main() {
 	// Web server for metrics and profiling.
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		log.Fatal(http.ListenAndServe(":8081", nil))
+		log.Fatal(http.ListenAndServe(":80", nil))
 	}()
 
 	buildQueue := builder.NewWorkerBuildQueue(util.KeyDigestWithInstance, 16)

@@ -3,9 +3,10 @@ package blobstore
 import (
 	"context"
 	"fmt"
-	"golang.org/x/net/context/ctxhttp"
 	"io"
 	"net/http"
+
+	"golang.org/x/net/context/ctxhttp"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
 	"google.golang.org/grpc/codes"
@@ -17,6 +18,9 @@ type remoteBlobAccess struct {
 	prefix  string
 }
 
+// NewRemoteBlobAccess for use of HTTP/1.1 cache backend.
+//
+// See: https://docs.bazel.build/versions/master/remote-caching.html#http-caching-protocol
 func NewRemoteBlobAccess(address, prefix string) BlobAccess {
 	return &remoteBlobAccess{
 		address: address,
@@ -49,7 +53,6 @@ func (ba *remoteBlobAccess) Put(ctx context.Context, instance string, digest *re
 	if err != nil {
 		return err
 	}
-	// req.ContentLength = digest.GetSizeBytes()
 
 	_, err = ctxhttp.Do(ctx, http.DefaultClient, req)
 	return err

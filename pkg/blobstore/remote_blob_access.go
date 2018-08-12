@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	remoteexecution "google.golang.org/genproto/googleapis/devtools/remoteexecution/v1test"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type remoteBlobAccess struct {
@@ -23,17 +25,33 @@ func NewRemoteBlobAccess(address, prefix string) BlobAccess {
 }
 
 func (ba *remoteBlobAccess) Get(ctx context.Context, instance string, digest *remoteexecution.Digest) io.ReadCloser {
-	resp, err := ctxhttp.Get(ctx, http.DefaultClient, fmt.Sprintf("%s/%s/%s", ba.address, ba.prefix, digest.GetHash()))
+	url := fmt.Sprintf("%s/%s/%s", ba.address, ba.prefix, digest.GetHash())
+	resp, err := ctxhttp.Get(ctx, http.DefaultClient, url)
 	if err != nil {
+		fmt.Printf("Error getting digest. %s\n", err)
 		return &errorReader{err: err}
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return &errorReader{err: status.Errorf(codes.NotFound, url)}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return &errorReader{err: status.Errorf(codes.NotFound, "Unexpected status code from remote cache: %d - %s", resp.StatusCode, http.StatusText(resp.StatusCode))}
 	}
 
 	return resp.Body
 }
 
 func (ba *remoteBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
-	_, err := ctxhttp.Post(ctx, http.DefaultClient, fmt.Sprintf("%s/%s/%s", ba.address, ba.prefix, digest.GetHash()), "todo-body-type", r)
+	url := fmt.Sprintf("%s/%s/%s", ba.address, ba.prefix, digest.GetHash())
+	req, err := http.NewRequest(http.MethodPut, url, r)
+	if err != nil {
+		return err
+	}
+	// req.ContentLength = digest.GetSizeBytes()
 
+	_, err = ctxhttp.Do(ctx, http.DefaultClient, req)
 	return err
 }
 
@@ -46,9 +64,10 @@ func (ba *remoteBlobAccess) FindMissing(ctx context.Context, instance string, di
 			return nil, err
 		}
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != http.StatusOK {
 			missing = append(missing, digest)
 		}
 	}
+
 	return missing, nil
 }

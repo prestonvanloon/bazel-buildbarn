@@ -58,7 +58,7 @@ func main() {
 	// Web server for metrics and profiling.
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		log.Fatal(http.ListenAndServe(":80", nil))
+		log.Fatal(http.ListenAndServe(":8080", nil))
 	}()
 
 	// Create an S3 client. Set the uploader concurrency to 1 to drastically reduce memory usage.
@@ -78,7 +78,7 @@ func main() {
 	var largeBlobAccess blobstore.BlobAccess
 	var actionCacheBlobAccess blobstore.BlobAccess
 
-	if *remoteCache != "" {
+	if *remoteCache == "" {
 		smallBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRedisBlobAccess(
 				redis.NewClient(
@@ -110,7 +110,7 @@ func main() {
 		smallBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
 			"cas_remote")
-		smallBlobAccess = blobstore.NewMetricsBlobAccess(
+		largeBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
 			"cas_remote")
 		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(

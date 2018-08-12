@@ -30,14 +30,14 @@ import (
 
 func main() {
 	var (
-		redisEndpoint     = flag.String("redis-endpoint", "", "Redis endpoint for the Content Addressable Storage and the Action Cache")
-		
+		redisEndpoint = flag.String("redis-endpoint", "", "Redis endpoint for the Content Addressable Storage and the Action Cache")
+
 		s3Endpoint        = flag.String("s3-endpoint", "", "S3 compatible object storage endpoint for the Content Addressable Storage and the Action Cache")
 		s3AccessKeyId     = flag.String("s3-access-key-id", "", "Access key for the object storage")
 		s3SecretAccessKey = flag.String("s3-secret-access-key", "", "Secret key for the object storage")
 		s3Region          = flag.String("s3-region", "", "Region of the object storage")
 		s3DisableSsl      = flag.Bool("s3-disable-ssl", false, "Whether to use HTTP for the object storage instead of HTTPS")
-		
+
 		remoteCache = flag.String("remote", "", "The address of the remote HTTP cache")
 
 		schedulerAddress = flag.String("scheduler", "", "Address of the scheduler to which to connect")
@@ -65,12 +65,12 @@ func main() {
 	s3 := s3.New(session)
 	uploader := s3manager.NewUploader(session)
 	uploader.Concurrency = 1
-	
+
 	var smallBlobAccess blobstore.BlobAccess
 	var largeBlobAccess blobstore.BlobAccess
 	var actionCacheBlobAccess blobstore.BlobAccess
 
-	if *remoteCache != "" {
+	if *remoteCache == "" {
 		smallBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRedisBlobAccess(
 				redis.NewClient(
@@ -102,7 +102,7 @@ func main() {
 		smallBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
 			"cas_remote")
-		smallBlobAccess = blobstore.NewMetricsBlobAccess(
+		largeBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
 			"cas_remote")
 		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(

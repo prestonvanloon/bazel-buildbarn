@@ -18,6 +18,10 @@ type remoteBlobAccess struct {
 	prefix  string
 }
 
+func convertHTTPUnexpectedStatus(resp *http.Response) error {
+	return status.Errorf(codes.Unknown, "Unexpected status code from remote cache: %d - %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+}
+
 // NewRemoteBlobAccess for use of HTTP/1.1 cache backend.
 //
 // See: https://docs.bazel.build/versions/master/remote-caching.html#http-caching-protocol
@@ -36,15 +40,14 @@ func (ba *remoteBlobAccess) Get(ctx context.Context, instance string, digest *re
 		return &errorReader{err: err}
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
+	switch resp.StatusCode {
+	case http.StatusNotFound:
 		return &errorReader{err: status.Errorf(codes.NotFound, url)}
+	case http.StatusOK:
+		return resp.Body
+	default:
+		return &errorReader{err: convertHTTPUnexpectedStatus(resp)}
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return &errorReader{err: status.Errorf(codes.NotFound, "Unexpected status code from remote cache: %d - %s", resp.StatusCode, http.StatusText(resp.StatusCode))}
-	}
-
-	return resp.Body
 }
 
 func (ba *remoteBlobAccess) Put(ctx context.Context, instance string, digest *remoteexecution.Digest, r io.ReadCloser) error {
@@ -67,8 +70,13 @@ func (ba *remoteBlobAccess) FindMissing(ctx context.Context, instance string, di
 			return nil, err
 		}
 
-		if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case http.StatusNotFound:
 			missing = append(missing, digest)
+		case http.StatusOK:
+			continue
+		default:
+			return nil, convertHTTPUnexpectedStatus(resp)
 		}
 	}
 

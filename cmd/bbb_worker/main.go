@@ -66,28 +66,29 @@ func main() {
 	uploader := s3manager.NewUploader(session)
 	uploader.Concurrency = 1
 
-	var smallBlobAccess blobstore.BlobAccess
-	var largeBlobAccess blobstore.BlobAccess
+	var casBlobAccess blobstore.BlobAccess
 	var actionCacheBlobAccess blobstore.BlobAccess
 
 	if *remoteCache == "" {
-		smallBlobAccess = blobstore.NewMetricsBlobAccess(
-			blobstore.NewRedisBlobAccess(
-				redis.NewClient(
-					&redis.Options{
-						Addr: *redisEndpoint,
-						DB:   0,
-					}),
-				util.KeyDigestWithoutInstance),
-			"cas_redis")
 
-		largeBlobAccess = blobstore.NewMetricsBlobAccess(
-			blobstore.NewS3BlobAccess(
-				s3,
-				uploader,
-				aws.String("content-addressable-storage"),
-				util.KeyDigestWithoutInstance),
-			"cas_s3")
+		casBlobAccess = blobstore.NewSizeDistinguishingBlobAccess(
+			blobstore.NewMetricsBlobAccess(
+				blobstore.NewRedisBlobAccess(
+					redis.NewClient(
+						&redis.Options{
+							Addr: *redisEndpoint,
+							DB:   0,
+						}),
+					util.KeyDigestWithoutInstance),
+				"cas_redis"),
+			blobstore.NewMetricsBlobAccess(
+				blobstore.NewS3BlobAccess(
+					s3,
+					uploader,
+					aws.String("content-addressable-storage"),
+					util.KeyDigestWithoutInstance),
+				"cas_s3"),
+			1<<20)
 
 		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRedisBlobAccess(
@@ -99,10 +100,7 @@ func main() {
 				util.KeyDigestWithInstance),
 			"ac_redis")
 	} else {
-		smallBlobAccess = blobstore.NewMetricsBlobAccess(
-			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
-			"cas_remote")
-		largeBlobAccess = blobstore.NewMetricsBlobAccess(
+		casBlobAccess = blobstore.NewMetricsBlobAccess(
 			blobstore.NewRemoteBlobAccess(*remoteCache, "cas"),
 			"cas_remote")
 		actionCacheBlobAccess = blobstore.NewMetricsBlobAccess(
@@ -113,10 +111,7 @@ func main() {
 	// Storage of content and actions.
 	contentAddressableStorageBlobAccess := blobstore.NewMetricsBlobAccess(
 		blobstore.NewMerkleBlobAccess(
-			blobstore.NewSizeDistinguishingBlobAccess(
-				smallBlobAccess,
-				largeBlobAccess,
-				1<<20)),
+			casBlobAccess),
 		"cas_merkle")
 
 	// On-disk caching of content for efficient linking into build environments.
